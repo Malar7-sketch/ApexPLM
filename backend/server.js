@@ -68,9 +68,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/bom', bomRoutes);
+app.use('/api/boms', bomRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/ncrs', ncrRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/audit', auditRoutes);
 app.use('/api/parts', partRoutes);
 
 // Error Handling Middlewares
