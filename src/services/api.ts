@@ -1,0 +1,297 @@
+import type { UserAccount } from '../data/mockUsers';
+import type { Project, BOMNode, EngineeringDocument, QualityNCR, AuditLog, PartItem } from '../types/plm';
+
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+// Token management
+const TOKEN_KEY = 'apex_plm_auth_token';
+export const getAuthToken = (): string | null => localStorage.getItem(TOKEN_KEY);
+export const setAuthToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
+export const clearAuthToken = (): void => localStorage.removeItem(TOKEN_KEY);
+
+// Centralized request wrapper
+async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const errorMsg = data.message || `API Error: ${res.status} ${res.statusText}`;
+      const err = new Error(errorMsg);
+      (err as any).status = res.status;
+      (err as any).data = data;
+      throw err;
+    }
+
+    return data as T;
+  } catch (err: any) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      console.warn(`[ApexPLM API] Connection to ${BASE_URL} failed. Ensure backend is running.`);
+    }
+    throw err;
+  }
+}
+
+// 1. Authentication Service
+export const authApi = {
+  login: async (credentials: { email?: string; employeeId?: string; password: string }) => {
+    const res = await apiFetch<{ success: boolean; token: string; user: UserAccount }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
+  },
+  getMe: async () => {
+    return apiFetch<{ success: boolean; user: UserAccount }>('/api/auth/me');
+  },
+  logout: () => {
+    clearAuthToken();
+  },
+};
+
+// 2. User Management Service (Admin)
+export const usersApi = {
+  getAll: async () => {
+    const res = await apiFetch<{ success: boolean; users: UserAccount[] }>('/api/users');
+    return res.users || [];
+  },
+  getById: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; user: UserAccount }>(`/api/users/${id}`);
+    return res.user;
+  },
+  create: async (userData: Partial<UserAccount> & { password?: string }) => {
+    const res = await apiFetch<{ success: boolean; user: UserAccount; message: string }>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+    return res.user;
+  },
+  update: async (id: string, userData: Partial<UserAccount>) => {
+    const res = await apiFetch<{ success: boolean; user: UserAccount; message: string }>(`/api/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+    return res.user;
+  },
+  delete: async (id: string) => {
+    return apiFetch<{ success: boolean; message: string; deletedId: string }>(`/api/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
+  block: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; user: UserAccount }>(`/api/users/${id}/block`, {
+      method: 'PATCH',
+    });
+    return res.user;
+  },
+  unblock: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; user: UserAccount }>(`/api/users/${id}/unblock`, {
+      method: 'PATCH',
+    });
+    return res.user;
+  },
+  resetPassword: async (id: string, newPassword: string) => {
+    return apiFetch<{ success: boolean; message: string }>(`/api/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword }),
+    });
+  },
+};
+
+// 3. Project Management Service (Single Source of Truth)
+export const projectsApi = {
+  getAll: async () => {
+    const res = await apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
+    return res.projects || [];
+  },
+  getById: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; project: Project }>(`/api/projects/${id}`);
+    return res.project;
+  },
+  create: async (projectData: Partial<Project>) => {
+    const res = await apiFetch<{ success: boolean; project: Project; message: string }>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(projectData),
+    });
+    return res.project;
+  },
+  update: async (id: string, projectData: Partial<Project>) => {
+    const res = await apiFetch<{ success: boolean; project: Project; message: string }>(`/api/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(projectData),
+    });
+    return res.project;
+  },
+  delete: async (id: string) => {
+    return apiFetch<{ success: boolean; message: string; deletedId: string; deletedCode: string }>(
+      `/api/projects/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+  getBOM: async (projectId: string) => {
+    const res = await apiFetch<{ success: boolean; bom: { rootNode: BOMNode } }>(`/api/projects/${projectId}/bom`);
+    return res.bom?.rootNode;
+  },
+  saveBOM: async (projectId: string, partId: string, rootNode: BOMNode) => {
+    const res = await apiFetch<{ success: boolean; bom: any }>(`/api/projects/${projectId}/bom`, {
+      method: 'POST',
+      body: JSON.stringify({ partId, rootNode, projectId }),
+    });
+    return res.bom;
+  },
+};
+
+// 4. BOM Management Service
+export const bomApi = {
+  getAll: async () => {
+    const res = await apiFetch<{ success: boolean; boms: { partId: string; rootNode: BOMNode }[] }>('/api/bom');
+    const map: Record<string, BOMNode> = {};
+    if (res.boms) {
+      res.boms.forEach((b) => {
+        if (b.partId && b.rootNode) map[b.partId] = b.rootNode;
+      });
+    }
+    return map;
+  },
+  getByPartId: async (partId: string) => {
+    const res = await apiFetch<{ success: boolean; bom: { rootNode: BOMNode } }>(`/api/bom/${partId}`);
+    return res.bom?.rootNode;
+  },
+  save: async (partId: string, rootNode: BOMNode, projectId?: string) => {
+    const res = await apiFetch<{ success: boolean; bom: any }>('/api/bom', {
+      method: 'POST',
+      body: JSON.stringify({ partId, rootNode, projectId }),
+    });
+    return res.bom;
+  },
+};
+
+// 5. Document Management Service
+export const documentsApi = {
+  getAll: async (projectId?: string) => {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const res = await apiFetch<{ success: boolean; documents: EngineeringDocument[] }>(`/api/documents${query}`);
+    return res.documents || [];
+  },
+  getById: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; document: EngineeringDocument }>(`/api/documents/${id}`);
+    return res.document;
+  },
+  create: async (docData: Partial<EngineeringDocument>) => {
+    const res = await apiFetch<{ success: boolean; document: EngineeringDocument }>('/api/documents', {
+      method: 'POST',
+      body: JSON.stringify(docData),
+    });
+    return res.document;
+  },
+  update: async (id: string, docData: Partial<EngineeringDocument>) => {
+    const res = await apiFetch<{ success: boolean; document: EngineeringDocument }>(`/api/documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(docData),
+    });
+    return res.document;
+  },
+  delete: async (id: string) => {
+    return apiFetch<{ success: boolean; message: string; deletedId: string }>(`/api/documents/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// 6. Quality / NCR Management Service
+export const ncrsApi = {
+  getAll: async (projectId?: string) => {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const res = await apiFetch<{ success: boolean; ncrs: QualityNCR[] }>(`/api/ncrs${query}`);
+    return res.ncrs || [];
+  },
+  getById: async (id: string) => {
+    const res = await apiFetch<{ success: boolean; ncr: QualityNCR }>(`/api/ncrs/${id}`);
+    return res.ncr;
+  },
+  create: async (ncrData: Partial<QualityNCR>) => {
+    const res = await apiFetch<{ success: boolean; ncr: QualityNCR }>('/api/ncrs', {
+      method: 'POST',
+      body: JSON.stringify(ncrData),
+    });
+    return res.ncr;
+  },
+  update: async (id: string, ncrData: Partial<QualityNCR>) => {
+    const res = await apiFetch<{ success: boolean; ncr: QualityNCR }>(`/api/ncrs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(ncrData),
+    });
+    return res.ncr;
+  },
+  delete: async (id: string) => {
+    return apiFetch<{ success: boolean; message: string; deletedId: string }>(`/api/ncrs/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// 7. Audit Log Service
+export const auditLogsApi = {
+  getAll: async (limit = 200) => {
+    const res = await apiFetch<{ success: boolean; auditLogs: AuditLog[] }>(`/api/audit-logs?limit=${limit}`);
+    return res.auditLogs || [];
+  },
+  create: async (logData: Partial<AuditLog>) => {
+    const res = await apiFetch<{ success: boolean; auditLog: AuditLog }>('/api/audit-logs', {
+      method: 'POST',
+      body: JSON.stringify(logData),
+    });
+    return res.auditLog;
+  },
+};
+
+// 8. Item Master / Parts Service
+export const partsApi = {
+  getAll: async (projectId?: string) => {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    const res = await apiFetch<{ success: boolean; parts: PartItem[] }>(`/api/parts${query}`);
+    return res.parts || [];
+  },
+  create: async (partData: Partial<PartItem>) => {
+    const res = await apiFetch<{ success: boolean; part: PartItem }>('/api/parts', {
+      method: 'POST',
+      body: JSON.stringify(partData),
+    });
+    return res.part;
+  },
+  update: async (id: string, partData: Partial<PartItem>) => {
+    const res = await apiFetch<{ success: boolean; part: PartItem }>(`/api/parts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(partData),
+    });
+    return res.part;
+  },
+  delete: async (id: string) => {
+    return apiFetch<{ success: boolean; message: string; deletedId: string }>(`/api/parts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
