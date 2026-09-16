@@ -38,11 +38,12 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive during dev to prevent browser blockages
+      return callback(null, true); // Permissive to allow Vercel previews & production domains
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin'],
+    exposedHeaders: ['Authorization'],
   })
 );
 

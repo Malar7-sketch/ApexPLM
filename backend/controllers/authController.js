@@ -106,9 +106,36 @@ const loginUser = async (req, res, next) => {
 // @route   GET /api/auth/me
 // @access  Private
 const getMe = async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: 'User session not found.',
+    });
+  }
+
   return res.status(200).json({
     success: true,
-    user: req.user,
+    user: {
+      id: user._id ? user._id.toString() : (user.id || ''),
+      employeeId: user.employeeId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      systemRole: user.systemRole,
+      roleId: user.roleId,
+      personaKey: user.personaKey,
+      department: user.department,
+      avatar: user.avatar,
+      badgeColor: user.badgeColor,
+      manager: user.manager,
+      officeLocation: user.officeLocation,
+      lastLogin: user.lastLogin,
+      status: user.status,
+      permissions: user.permissions,
+      joiningDate: user.joiningDate,
+      phone: user.phone,
+    },
   });
 };
 

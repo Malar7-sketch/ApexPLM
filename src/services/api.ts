@@ -8,19 +8,43 @@ export const API_BASE_URL = (
 
 const BASE_URL = API_BASE_URL;
 
-// Token and Session management
+// Token and Session management with localStorage + sessionStorage redundancy
 const TOKEN_KEY = 'apex_plm_auth_token';
 const USER_KEY = 'apex_plm_current_user';
 const TAB_KEY = 'apex_plm_active_tab';
 
-export const getAuthToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-export const setAuthToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
-export const clearAuthToken = (): void => localStorage.removeItem(TOKEN_KEY);
+export const getAuthToken = (): string | null => {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setAuthToken = (token: string): void => {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } catch (e) {
+    console.warn('Failed to save auth token:', e);
+  }
+};
+
+export const clearAuthToken = (): void => {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch (e) {
+    console.warn('Failed to clear auth token:', e);
+  }
+};
 
 export const getStoredUser = (): UserAccount | null => {
   try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && parsed.email ? parsed : null;
   } catch {
     return null;
   }
@@ -28,19 +52,48 @@ export const getStoredUser = (): UserAccount | null => {
 
 export const setStoredUser = (user: UserAccount): void => {
   try {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    const serialized = JSON.stringify(user);
+    localStorage.setItem(USER_KEY, serialized);
+    sessionStorage.setItem(USER_KEY, serialized);
   } catch (e) {
     console.error('Failed to store user session:', e);
   }
 };
 
 export const clearStoredUser = (): void => {
-  localStorage.removeItem(USER_KEY);
+  try {
+    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  } catch (e) {
+    console.warn('Failed to clear stored user:', e);
+  }
 };
 
-export const getStoredActiveTab = (): string | null => localStorage.getItem(TAB_KEY);
-export const setStoredActiveTab = (tab: string): void => localStorage.setItem(TAB_KEY, tab);
-export const clearStoredActiveTab = (): void => localStorage.removeItem(TAB_KEY);
+export const getStoredActiveTab = (): string | null => {
+  try {
+    return localStorage.getItem(TAB_KEY) || sessionStorage.getItem(TAB_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setStoredActiveTab = (tab: string): void => {
+  try {
+    localStorage.setItem(TAB_KEY, tab);
+    sessionStorage.setItem(TAB_KEY, tab);
+  } catch (e) {
+    console.warn('Failed to save active tab:', e);
+  }
+};
+
+export const clearStoredActiveTab = (): void => {
+  try {
+    localStorage.removeItem(TAB_KEY);
+    sessionStorage.removeItem(TAB_KEY);
+  } catch (e) {
+    console.warn('Failed to clear active tab:', e);
+  }
+};
 
 // Centralized request wrapper
 async function apiFetch<T>(

@@ -184,8 +184,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       setStoredUser(currentUser);
-    } else {
-      clearStoredUser();
     }
   }, [currentUser]);
 
@@ -590,13 +588,15 @@ export const App: React.FC = () => {
               setStoredUser(liveUser);
             }
           } catch (authErr: any) {
-            // Only log out if backend explicitly rejected the token (401 / 403)
-            if (authErr.status === 401 || authErr.status === 403) {
+            // ONLY log out if backend explicitly rejected the token with confirmed 401 / 403
+            const status = authErr?.status || authErr?.response?.status;
+            if (status === 401 || status === 403) {
               console.warn('Authentication token expired or account blocked. Logging out.');
               authApi.logout();
               setCurrentUser(null);
             } else if (cachedUser) {
-              // Network issue / offline - keep local session intact
+              // Network issue / Render cold start / timeout - keep local session intact
+              console.warn('Backend session verification unreachable or delayed. Retaining cached session.');
               setCurrentUser(cachedUser);
             }
           }
