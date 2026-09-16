@@ -30,7 +30,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({
   onSelectPart,
   onCheckoutToggle
 }) => {
-  const parts = rawParts && rawParts.length > 0 ? rawParts : INITIAL_PARTS;
+  const parts = rawParts !== undefined ? rawParts : [];
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
@@ -49,7 +49,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({
     return matchesSearch && matchesCategory && matchesStage;
   });
 
-  const selectedPart = parts.find((p) => p.id === selectedPartId) || parts[0] || INITIAL_PARTS[0];
+  const selectedPart = parts.find((p) => p.id === selectedPartId) || parts[0];
 
   return (
     <div className="space-y-6">

@@ -3,16 +3,25 @@ const Project = require('../models/Project');
 const Document = require('../models/Document');
 const NCR = require('../models/NCR');
 const Part = require('../models/Part');
+const BOM = require('../models/BOM');
 const AuditLog = require('../models/AuditLog');
 
-// Helper to find project by MongoDB _id, code, or custom id
+// Helper to find project by MongoDB _id, code, custom id, or name
 const findProjectByIdOrCode = async (idParam) => {
+  if (!idParam) return null;
   if (mongoose.Types.ObjectId.isValid(idParam)) {
     const project = await Project.findById(idParam);
     if (project) return project;
   }
+  const escapedParam = String(idParam).trim();
+  const regex = new RegExp(`^${escapedParam}$`, 'i');
   return await Project.findOne({
-    $or: [{ code: idParam }, { id: idParam }],
+    $or: [
+      { code: escapedParam },
+      { id: escapedParam },
+      { code: regex },
+      { name: regex },
+    ],
   });
 };
 
@@ -194,6 +203,19 @@ const deleteProject = async (req, res, next) => {
   try {
     const project = await findProjectByIdOrCode(req.params.id);
     if (!project) {
+      // Attempt direct fallback removal by code or id pattern
+      const targetParam = String(req.params.id).trim();
+      const directDelete = await Project.findOneAndDelete({
+        $or: [{ code: targetParam }, { id: targetParam }],
+      });
+      if (directDelete) {
+        return res.status(200).json({
+          success: true,
+          message: `Project ${directDelete.name} (${directDelete.code}) deleted permanently from database.`,
+          deletedId: directDelete._id.toString(),
+          deletedCode: directDelete.code,
+        });
+      }
       return res.status(404).json({
         success: false,
         message: 'Project not found in database.',
@@ -213,6 +235,10 @@ const deleteProject = async (req, res, next) => {
     });
 
     await NCR.deleteMany({
+      $or: [{ projectId: pId }, { projectId: pCode }],
+    });
+
+    await BOM.deleteMany({
       $or: [{ projectId: pId }, { projectId: pCode }],
     });
 

@@ -22,12 +22,13 @@ import {
   ChevronRight,
   Sparkles
 } from 'lucide-react';
-import type { PartItem, ECR, ECN, StageGate, AuditLog, QualityNCR } from '../types/plm';
+import type { PartItem, ECR, ECN, StageGate, AuditLog, QualityNCR, Project } from '../types/plm';
 import type { UserAccount } from '../data/mockUsers';
 import { useTheme } from '../context/ThemeContext';
 
 interface AdminDashboardProps {
   parts: PartItem[];
+  projects?: Project[];
   ecrs: ECR[];
   ecns: ECN[];
   ncrs: QualityNCR[];
@@ -38,6 +39,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   parts,
+  projects = [],
   ecrs,
   ecns,
   ncrs,
@@ -46,7 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateTab
 }) => {
   const { isDark } = useTheme();
-  const activeProjectsCount = 4;
+  const activeProjectsCount = projects.length;
   const totalCadModels = 6;
   const activeBoms = 6;
   const pendingEcosCount = 1;

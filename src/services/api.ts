@@ -192,6 +192,11 @@ export const bomApi = {
     });
     return res.bom;
   },
+  delete: async (idOrPartId: string) => {
+    return apiFetch<{ success: boolean; message: string }>(`/api/bom/${idOrPartId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // 5. Document Management Service

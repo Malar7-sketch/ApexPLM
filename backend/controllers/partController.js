@@ -1,14 +1,20 @@
 const mongoose = require('mongoose');
 const Part = require('../models/Part');
+const BOM = require('../models/BOM');
+const Document = require('../models/Document');
+const NCR = require('../models/NCR');
 const AuditLog = require('../models/AuditLog');
 
 const findPartByIdOrNumber = async (idParam) => {
+  if (!idParam) return null;
   if (mongoose.Types.ObjectId.isValid(idParam)) {
     const part = await Part.findById(idParam);
     if (part) return part;
   }
+  const escapedParam = String(idParam).trim();
+  const regex = new RegExp(`^${escapedParam}$`, 'i');
   return await Part.findOne({
-    $or: [{ partNumber: idParam }, { id: idParam }],
+    $or: [{ partNumber: escapedParam }, { id: escapedParam }, { partNumber: regex }, { name: regex }],
   });
 };
 
@@ -166,14 +172,37 @@ const deletePart = async (req, res, next) => {
   try {
     const part = await findPartByIdOrNumber(req.params.id);
     if (!part) {
+      const targetParam = String(req.params.id).trim();
+      const directDelete = await Part.findOneAndDelete({
+        $or: [{ partNumber: targetParam }, { id: targetParam }],
+      });
+      if (directDelete) {
+        const pNum = directDelete.partNumber;
+        const pId = directDelete._id.toString();
+        await BOM.deleteMany({ $or: [{ partId: pNum }, { partId: pId }, { 'rootNode.partNumber': pNum }, { 'rootNode.partId': pId }] });
+        await Document.deleteMany({ $or: [{ linkedPartId: pNum }, { linkedPartId: pId }] });
+        await NCR.deleteMany({ $or: [{ impactedPartId: pNum }, { impactedPartId: pId }, { impactedPartNumber: pNum }] });
+        return res.status(200).json({
+          success: true,
+          message: `Part ${pNum} deleted successfully from database.`,
+          deletedId: pId,
+          deletedPartNumber: pNum,
+        });
+      }
       return res.status(404).json({
         success: false,
-        message: 'Part not found.',
+        message: 'Part not found in database.',
       });
     }
 
     const pNum = part.partNumber;
+    const pId = part._id.toString();
     await Part.findByIdAndDelete(part._id);
+
+    // Cascade delete linked BOM, documents, and NCRs in MongoDB
+    await BOM.deleteMany({ $or: [{ partId: pNum }, { partId: pId }, { 'rootNode.partNumber': pNum }, { 'rootNode.partId': pId }] });
+    await Document.deleteMany({ $or: [{ linkedPartId: pNum }, { linkedPartId: pId }] });
+    await NCR.deleteMany({ $or: [{ impactedPartId: pNum }, { impactedPartId: pId }, { impactedPartNumber: pNum }] });
 
     await AuditLog.create({
       user: req.user?.name || 'Engineering User',
@@ -181,13 +210,14 @@ const deletePart = async (req, res, next) => {
       action: 'Deleted Part Master',
       category: 'ITEM_MASTER',
       targetId: pNum,
-      details: `Removed part record ${pNum} from item master.`,
+      details: `Removed part record ${pNum} from item master in MongoDB Atlas.`,
     });
 
     return res.status(200).json({
       success: true,
-      message: `Part ${pNum} deleted successfully.`,
-      deletedId: part._id.toString(),
+      message: `Part ${pNum} deleted successfully from database.`,
+      deletedId: pId,
+      deletedPartNumber: pNum,
     });
   } catch (error) {
     next(error);

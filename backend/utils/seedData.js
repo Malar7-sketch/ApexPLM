@@ -450,38 +450,47 @@ const seedDatabase = async () => {
       console.log(`Users collection already has ${userCount} records.`);
     }
 
-    // 2. Seed Projects
+    // Check if system has already completed first-time initialization
+    const isAlreadyInitialized = await AuditLog.findOne({ action: 'Database Initialization' });
+
+    // 2. Seed Projects (Only on initial system bootstrap)
     const projectCount = await Project.countDocuments();
-    if (projectCount === 0) {
+    if (projectCount === 0 && !isAlreadyInitialized) {
       console.log('Seeding initial PLM projects into MongoDB...');
       await Project.insertMany(initialProjects);
       console.log(`Seeded ${initialProjects.length} projects successfully.`);
     } else {
-      console.log(`Projects collection already has ${projectCount} records.`);
+      console.log(`Projects collection status: ${projectCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 3. Seed BOM
+    // 3. Seed BOM (Only on initial system bootstrap)
     const bomCount = await BOM.countDocuments();
-    if (bomCount === 0) {
+    if (bomCount === 0 && !isAlreadyInitialized) {
       console.log('Seeding initial BOM hierarchies...');
       await BOM.create(initialBOM);
       console.log('Seeded BOM trees successfully.');
+    } else {
+      console.log(`BOM collection status: ${bomCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 4. Seed Documents
+    // 4. Seed Documents (Only on initial system bootstrap)
     const docCount = await Document.countDocuments();
-    if (docCount === 0) {
+    if (docCount === 0 && !isAlreadyInitialized) {
       console.log('Seeding engineering documents into vault...');
       await Document.insertMany(initialDocuments);
       console.log(`Seeded ${initialDocuments.length} documents successfully.`);
+    } else {
+      console.log(`Documents collection status: ${docCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 5. Seed NCRs
+    // 5. Seed NCRs (Only on initial system bootstrap)
     const ncrCount = await NCR.countDocuments();
-    if (ncrCount === 0) {
+    if (ncrCount === 0 && !isAlreadyInitialized) {
       console.log('Seeding Quality NCR records...');
       await NCR.insertMany(initialNCRs);
       console.log(`Seeded ${initialNCRs.length} NCRs successfully.`);
+    } else {
+      console.log(`NCR collection status: ${ncrCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
     // 6. Seed AuditLog

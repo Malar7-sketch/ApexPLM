@@ -69,6 +69,7 @@ import {
   dataUrlToBlob 
 } from '../utils/cadVaultStorage';
 import { CadPreviewModal } from './CadPreviewModal';
+import { partsApi, bomApi, documentsApi, projectsApi } from '../services/api';
 
 interface ProductManagementProps {
   parts: PartItem[];
@@ -953,7 +954,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
   };
 
   // ADMIN-ONLY: Permanent system-wide Product Deletion across all modules
-  const handleConfirmDeleteProduct = (partToDelete: PartItem) => {
+  const handleConfirmDeleteProduct = async (partToDelete: PartItem) => {
     if (!isAdmin) {
       alert('Access Denied: Only users with the ADMIN role are permitted to delete Product Master records.');
       return;
@@ -969,7 +970,36 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       // 1. Blacklist the deleted product ID and Part Number to prevent accidental recreation
       recordDeletedProductId([targetId, targetPn]);
 
-      // 2. Permanently delete from Product Master
+      // 2. Permanently delete from MongoDB Atlas via backend API
+      try {
+        await partsApi.delete(targetId);
+      } catch (err: any) {
+        console.warn('Backend partsApi delete (ID) failed:', err.message);
+      }
+
+      if (targetPn && targetPn !== targetId) {
+        try {
+          await partsApi.delete(targetPn);
+        } catch {
+          // Ignore if already deleted by ID
+        }
+      }
+
+      try {
+        await bomApi.delete(targetId);
+      } catch {
+        // Ignore BOM delete error if not present
+      }
+
+      if (targetPn && targetPn !== targetId) {
+        try {
+          await bomApi.delete(targetPn);
+        } catch {
+          // Ignore
+        }
+      }
+
+      // 3. Permanently delete from Product Master local state and storage
       setParts(prev => {
         const next = prev.filter(p => p.id !== targetId && p.partNumber !== targetPn);
         try {
@@ -980,11 +1010,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         return next;
       });
 
-      // 3. Permanently purge CAD Files and associated Vault metadata
+      // 4. Permanently purge CAD Files and associated Vault metadata
       purgeStoredCadVaultFiles(targetId);
       purgeStoredCadVaultFiles(targetPn);
 
-      // 4. Permanently purge BOM / EBOM / MBOM trees and remove from child BOM references
+      // 5. Permanently purge BOM / EBOM / MBOM trees and remove from child BOM references
       setBomTrees(prev => {
         const next = { ...prev };
         delete next[targetId];
@@ -1007,7 +1037,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         return next;
       });
 
-      // 5. Permanently purge Engineering Documents & Drawings
+      // 6. Permanently purge Engineering Documents & Drawings
       setDocuments(prev => {
         const next = prev.filter(
           d => d.linkedPartId !== targetId && 
@@ -1023,7 +1053,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         return next;
       });
 
-      // 6. Permanently purge DFMEA and PFMEA records
+      // 7. Permanently purge DFMEA and PFMEA records
       setDfmeaRows(prev => {
         const next = prev.filter(
           r => r.linkedCadId !== targetId && 
@@ -1054,7 +1084,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         return next;
       });
 
-      // 7. Permanently purge Engineering Changes (ECRs / ECOs)
+      // 8. Permanently purge Engineering Changes (ECRs / ECOs)
       if (setEcrs) {
         setEcrs(prev => {
           const next = prev.filter(
@@ -1071,7 +1101,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         });
       }
 
-      // 8. Permanently purge Quality / NCR / CAPA records
+      // 9. Permanently purge Quality / NCR / CAPA records
       if (setNcrs) {
         setNcrs(prev => {
           const next = prev.filter(
@@ -1090,7 +1120,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         });
       }
 
-      // 9. Permanently purge inventory links
+      // 10. Permanently purge inventory links
       if (setInventory) {
         setInventory(prev => {
           const next = prev.filter(
@@ -1108,7 +1138,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         });
       }
 
-      // 10. Clean project linkages without deleting unrelated projects
+      // 11. Clean project linkages without deleting unrelated projects
       setProjects(prev => {
         const next = prev.map(proj => {
           if (proj.linkedPartId === targetId || proj.linkedPartId === targetPn || proj.releasedProduct === targetName) {
@@ -1130,7 +1160,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         return next;
       });
 
-      // 11. Purge localStorage drafts and caches
+      // 12. Purge localStorage drafts and caches
       try {
         localStorage.removeItem('apex_plm_product_creation_draft');
         localStorage.removeItem(`apex_product_${targetId}`);
@@ -1145,15 +1175,19 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         console.warn('Storage purge error:', e);
       }
 
-      // 12. Record deletion in Audit Trail with ADMIN info, Product ID, timestamp, and details
+      // 13. Record deletion in Audit Trail with ADMIN info, Product ID, timestamp, and details
       logAction(
         'Product Master Permanently Deleted',
         'SYSTEM',
         targetPn,
-        `ADMIN (${currentUser.name} / ${currentUser.email} [${currentUser.systemRole || 'ADMIN'}]) permanently deleted Product Master "${targetName}" (${targetPn}, ID: ${targetId}) across the entire PLM system. Purged all CAD files, BOM trees, engineering documents, DFMEA/PFMEA, ECR/ECO records, NCR quality logs, and project associations.`
+        `ADMIN (${currentUser.name} / ${currentUser.email} [${currentUser.systemRole || 'ADMIN'}]) permanently deleted Product Master "${targetName}" (${targetPn}, ID: ${targetId}) across the entire PLM system. Purged from MongoDB Atlas, CAD files, BOM trees, engineering documents, DFMEA/PFMEA, ECR/ECO records, NCR quality logs, and project associations.`
       );
 
-      // 13. State cleanup and return to list view
+      // Dispatch global sync events across all open browser sessions/tabs
+      window.dispatchEvent(new CustomEvent('plm:part-sync'));
+      window.dispatchEvent(new CustomEvent('plm:project-sync'));
+
+      // 14. State cleanup and return to list view
       setProductToDelete(null);
       if (selectedProductId === targetId) {
         setSelectedProductId(null);
@@ -1688,6 +1722,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       // 3. Update ONLY this product in parts list, keeping all other products completely unmodified
       setParts(prev => prev.map(p => p.id === editingProductId ? updatedPart : p));
 
+      // Persist to MongoDB Atlas via backend API
+      partsApi.update(editingProductId, updatedPart).catch(err => console.warn('Backend partsApi update failed:', err.message));
+
       // 4. Update BOM
       const newBOMRoot: BOMNode = {
         id: `BOM-${editingProductId}`,
@@ -1718,6 +1755,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         [editingProductId]: newBOMRoot
       }));
 
+      // Persist BOM to MongoDB Atlas
+      bomApi.save(editingProductId, newBOMRoot, formFields.projectId).catch(err => console.warn('Backend bomApi save failed:', err.message));
+
       // 5. Register CAD Vault files
       registerCadVaultFiles(attachedVaultFiles);
 
@@ -1733,6 +1773,10 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         updatedPart.partNumber,
         `Updated Product Master "${updatedPart.name}" (${updatedPart.partNumber}). Product ID ${editingProductId} preserved permanently.`
       );
+
+      // Multi-user synchronization event
+      window.dispatchEvent(new CustomEvent('plm:part-sync'));
+      window.dispatchEvent(new CustomEvent('plm:project-sync'));
 
       clearDraftState();
       setEditingProductId(null);
@@ -1775,6 +1819,10 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       ...prev,
       [newPartId]: newBOMRoot
     }));
+
+    // Persist to MongoDB Atlas via backend API
+    partsApi.create(newPart).catch(err => console.warn('Backend partsApi create failed:', err.message));
+    bomApi.save(newPartId, newBOMRoot, formFields.projectId).catch(err => console.warn('Backend bomApi save failed:', err.message));
 
     // Sync uploaded documents with the global vault
     const newDocs: EngineeringDocument[] = [];
@@ -1841,6 +1889,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
     if (newDocs.length > 0) {
       setDocuments(prev => [...newDocs, ...prev]);
+      newDocs.forEach(d => {
+        documentsApi.create(d).catch(err => console.warn('Backend documentsApi create failed:', err.message));
+      });
     }
 
     // Create new DFMEA row if required
@@ -1908,6 +1959,10 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       newPart.partNumber,
       `Step-by-step product master record "${newPart.name}" created with CAD linkages, revision logs and project allocations.`
     );
+
+    // Multi-user synchronization event
+    window.dispatchEvent(new CustomEvent('plm:part-sync'));
+    window.dispatchEvent(new CustomEvent('plm:project-sync'));
 
     // Clean local storage draft
     clearDraftState();
@@ -2066,17 +2121,21 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
     setParts(prev => [duplicatedPart, ...prev]);
     if (bomTrees[part.id]) {
+      const dupBOM = {
+        ...bomTrees[part.id],
+        id: `BOM-${dupId}`,
+        partId: dupId,
+        partNumber: dupPartNumber,
+        name: `${part.name} (Copy)`
+      };
       setBomTrees(prev => ({
         ...prev,
-        [dupId]: {
-          ...prev[part.id],
-          id: `BOM-${dupId}`,
-          partId: dupId,
-          partNumber: dupPartNumber,
-          name: `${part.name} (Copy)`
-        }
+        [dupId]: dupBOM
       }));
+      bomApi.save(dupId, dupBOM, duplicatedPart.projectId).catch(err => console.warn('Backend bomApi duplicate save failed:', err.message));
     }
+
+    partsApi.create(duplicatedPart).catch(err => console.warn('Backend partsApi duplicate create failed:', err.message));
 
     logAction(
       'Duplicated Product Master',
@@ -2084,6 +2143,8 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       duplicatedPart.partNumber,
       `Cloned product master from ${part.partNumber}`
     );
+
+    window.dispatchEvent(new CustomEvent('plm:part-sync'));
   };
 
   const selectedProduct = parts.find(p => p.id === selectedProductId) || parts[0];

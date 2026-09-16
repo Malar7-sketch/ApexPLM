@@ -302,23 +302,33 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   };
 
   // Permanent system-wide Project Deletion (Accessible to all logged-in users)
-  const handleConfirmDeleteProject = (projToDelete: Project) => {
+  const handleConfirmDeleteProject = async (projToDelete: Project) => {
     if (!projToDelete) return;
 
     setIsDeletingProject(true);
-    const targetId = projToDelete.id;
+    const targetId = projToDelete.id || (projToDelete as any)._id;
     const targetCode = projToDelete.code;
     const targetName = projToDelete.name;
 
+    // Track in permanent deleted set so local storage never restores it
+    try {
+      const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
+      if (targetId && !deletedSet.includes(targetId)) deletedSet.push(targetId);
+      if (targetCode && !deletedSet.includes(targetCode)) deletedSet.push(targetCode);
+      localStorage.setItem('apex_plm_deleted_project_ids', JSON.stringify(deletedSet));
+    } catch (e) {
+      console.error(e);
+    }
+
     try {
       // 1. Delete permanently from MongoDB Atlas
-      projectsApi.delete(targetId || targetCode).catch(err => {
+      await projectsApi.delete(targetId || targetCode).catch(err => {
         console.warn('Backend project delete error:', err.message);
       });
 
       // 2. Remove from projects list and sync localStorage
       setProjects(prev => {
-        const next = prev.filter(p => p.id !== targetId && p.code !== targetCode);
+        const next = prev.filter(p => p.id !== targetId && p.code !== targetCode && (p as any)._id !== targetId);
         try {
           localStorage.setItem('apex_plm_projects', JSON.stringify(next));
         } catch (e) {
@@ -327,8 +337,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         return next;
       });
 
-
-      // 2. Unlink or clean from Product Master records without deleting unrelated products
+      // 3. Unlink or clean from Product Master records without deleting unrelated products
       if (setParts) {
         setParts(prev => {
           const next = prev.map(pt => {
@@ -351,7 +360,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         });
       }
 
-      // 3. Purge linked Documents
+      // 4. Purge linked Documents
       if (setDocuments) {
         setDocuments(prev => {
           const next = prev.filter(
@@ -368,7 +377,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         });
       }
 
-      // 4. Purge linked ECRs
+      // 5. Purge linked ECRs
       if (setEcrs) {
         setEcrs(prev => {
           const next = prev.filter(
@@ -383,19 +392,24 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         });
       }
 
-      // 5. Update selected project to next available
-      const remaining = projects.filter(p => p.id !== targetId && p.code !== targetCode);
+      // 6. Update selected project to next available
+      const remaining = projects.filter(p => p.id !== targetId && p.code !== targetCode && (p as any)._id !== targetId);
       if (selectedProjectId === targetId || selectedProjectId === targetCode) {
         setSelectedProjectId(remaining[0]?.id || '');
       }
 
-      // 6. Record deletion in Audit Trail with user, date/time, and Project ID
+      // 7. Record deletion in Audit Trail with user, date/time, and Project ID
       logAction(
         'Project Permanently Deleted',
         'SYSTEM',
         targetCode,
         `User "${currentUser?.name || 'User'}" (${currentUser?.email || 'authenticated user'} [${currentUser?.role || currentUser?.systemRole || 'Team Member'}]) permanently deleted Project "${targetName}" (Code: ${targetCode}, ID: ${targetId}) at ${new Date().toLocaleString()}. Purged all 16 milestone tasks, project documents, change requests, team assignments, and product links.`
       );
+
+      // 8. Broadcast sync event across windows/dashboards
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('plm:project-sync'));
+      }
 
       setProjectToDelete(null);
     } finally {

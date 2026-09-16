@@ -119,7 +119,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <Briefcase className="w-4 h-4 text-cyan-500" />
           </div>
           <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            {projects.length || 4}
+            {projects.length}
           </div>
           <div className="text-[11px] text-cyan-500 font-medium">Assigned Workspaces</div>
         </div>
@@ -138,9 +138,9 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <CheckSquare className="w-4 h-4 text-purple-500" />
           </div>
           <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            4
+            {projects.reduce((acc, p) => acc + (p.tasks?.length || 0), 0)}
           </div>
-          <div className="text-[11px] text-purple-500 font-medium">2 Due This Week</div>
+          <div className="text-[11px] text-purple-500 font-medium">Assigned Milestones</div>
         </div>
 
         {/* Pending Approvals */}
@@ -176,7 +176,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <FileText className="w-4 h-4 text-emerald-500" />
           </div>
           <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            {documents.length || 6}
+            {documents.length}
           </div>
           <div className="text-[11px] text-emerald-500 font-medium">Engineering Vault</div>
         </div>
@@ -195,7 +195,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <Box className="w-4 h-4 text-cyan-500" />
           </div>
           <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            {parts.length || 5}
+            {parts.length}
           </div>
           <div className="text-[11px] text-cyan-500 font-medium">Master Assemblies</div>
         </div>

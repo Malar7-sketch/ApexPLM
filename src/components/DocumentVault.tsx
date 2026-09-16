@@ -6,9 +6,11 @@ import {
   Eye, 
   CheckCircle2,
   Loader2,
-  FolderLock
+  FolderLock,
+  Trash2
 } from 'lucide-react';
 import type { EngineeringDocument, PartItem } from '../types/plm';
+import type { UserAccount } from '../data/mockUsers';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { EngineeringDrawingModal } from './EngineeringDrawingModal';
 import { generateEngineeringDrawingPdf } from '../utils/engineeringDrawingPdf';
@@ -19,11 +21,15 @@ interface DocumentVaultProps {
   documents: EngineeringDocument[];
   partsMap: Record<string, PartItem>;
   onAddDocument: (doc: EngineeringDocument) => void;
+  onDeleteDocument?: (docId: string) => void;
+  currentUser?: UserAccount;
 }
 
 export const DocumentVault: React.FC<DocumentVaultProps> = ({
   documents,
-  partsMap
+  partsMap,
+  onDeleteDocument,
+  currentUser
 }) => {
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
@@ -200,6 +206,20 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     )}
                     <span>PDF</span>
                   </button>
+
+                  {onDeleteDocument && (currentUser?.systemRole === 'ADMIN' || currentUser?.role === 'PLM Administrator') && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Permanently delete document "${doc.title}" (${doc.docNumber}) from MongoDB database?`)) {
+                          onDeleteDocument(doc.id || doc.docNumber);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+                      title="Delete Document (Admin Only)"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

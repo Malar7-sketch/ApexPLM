@@ -48,7 +48,6 @@ import {
   INITIAL_QUALITY_NCRS,
   INITIAL_CAPAS,
   INITIAL_SUPPLIERS,
-  INITIAL_PROJECTS,
   INITIAL_TELEMETRY,
   INITIAL_AUDIT_LOGS,
   INITIAL_PROCESS_OPERATIONS,
@@ -65,6 +64,7 @@ import {
   documentsApi, 
   ncrsApi, 
   bomApi, 
+  partsApi,
   auditLogsApi,
   authApi 
 } from './services/api';
@@ -175,14 +175,17 @@ export const App: React.FC = () => {
   const [parts, setParts] = useState<PartItem[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_parts');
+      const deletedPartIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_part_ids') || '[]');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => p && !deletedPartIds.includes(p.id) && !deletedPartIds.includes(p.partNumber) && !deletedPartIds.includes((p as any)._id));
+        }
       }
     } catch (e) {
       console.error('Failed to load parts:', e);
     }
-    return INITIAL_PARTS;
+    return [];
   });
   const [selectedPartId, setSelectedPartId] = useState<string>('PN-1001');
   const [bomTrees, setBomTrees] = useState<Record<string, BOMNode>>(() => {
@@ -190,14 +193,14 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem('apex_plm_bom_trees');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return { ...INITIAL_BOM_TREES, ...parsed };
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
         }
       }
     } catch (e) {
       console.error('Failed to load bomTrees:', e);
     }
-    return INITIAL_BOM_TREES;
+    return {};
   });
   const [ecrs, setEcrs] = useState<ECR[]>(() => {
     try {
@@ -264,16 +267,17 @@ export const App: React.FC = () => {
   const [documents, setDocuments] = useState<EngineeringDocument[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_documents');
+      const deletedDocIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_doc_ids') || '[]');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 2) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(d => d && !deletedDocIds.includes(d.id) && !deletedDocIds.includes(d.docNumber) && !deletedDocIds.includes((d as any)._id));
         }
       }
     } catch (e) {
       console.error('Failed to load documents:', e);
     }
-    return INITIAL_DOCUMENTS;
+    return [];
   });
 
   // Sync documents to localStorage
@@ -289,12 +293,13 @@ export const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('apex_plm_ncrs_v1');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error('Failed to load NCRs from storage:', e);
     }
-    return INITIAL_QUALITY_NCRS;
+    return [];
   });
 
   // Sync NCRs to localStorage
@@ -311,11 +316,17 @@ export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_projects');
-      if (saved) return JSON.parse(saved);
+      const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => p && !deletedSet.includes(p.id) && !deletedSet.includes(p.code) && !deletedSet.includes((p as any)._id));
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load projects from storage:', e);
     }
-    return INITIAL_PROJECTS;
+    return [];
   });
 
   // Sync projects to localStorage
@@ -326,6 +337,95 @@ export const App: React.FC = () => {
       console.error(e);
     }
   }, [projects]);
+
+  // Real-time authoritative MongoDB synchronization helper for all PLM entities
+  const refreshAllFromBackend = React.useCallback(async () => {
+    try {
+      const [dbProjects, dbParts, dbDocs, dbNcrs, dbBoms] = await Promise.allSettled([
+        projectsApi.getAll(),
+        partsApi.getAll(),
+        documentsApi.getAll(),
+        ncrsApi.getAll(),
+        bomApi.getAll(),
+      ]);
+
+      if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value)) {
+        const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
+        const filtered = dbProjects.value.filter(p => p && !deletedSet.includes(p.id) && !deletedSet.includes(p.code) && !deletedSet.includes((p as any)._id));
+        setProjects(filtered);
+        try {
+          localStorage.setItem('apex_plm_projects', JSON.stringify(filtered));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbParts.status === 'fulfilled' && Array.isArray(dbParts.value)) {
+        const deletedPartIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_part_ids') || '[]');
+        const filteredParts = dbParts.value.filter(p => p && !deletedPartIds.includes(p.id) && !deletedPartIds.includes(p.partNumber) && !deletedPartIds.includes((p as any)._id));
+        setParts(filteredParts);
+        try {
+          localStorage.setItem('apex_plm_parts', JSON.stringify(filteredParts));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value)) {
+        const deletedDocIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_doc_ids') || '[]');
+        const filteredDocs = dbDocs.value.filter(d => d && !deletedDocIds.includes(d.id) && !deletedDocIds.includes(d.docNumber) && !deletedDocIds.includes((d as any)._id));
+        setDocuments(filteredDocs);
+        try {
+          localStorage.setItem('apex_plm_documents', JSON.stringify(filteredDocs));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbNcrs.status === 'fulfilled' && Array.isArray(dbNcrs.value)) {
+        setNcrs(dbNcrs.value);
+        try {
+          localStorage.setItem('apex_plm_ncrs_v1', JSON.stringify(dbNcrs.value));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbBoms.status === 'fulfilled' && dbBoms.value && typeof dbBoms.value === 'object') {
+        setBomTrees(prev => ({ ...prev, ...dbBoms.value }));
+        try {
+          localStorage.setItem('apex_plm_bom_trees', JSON.stringify(dbBoms.value));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend authoritative sync failed:', err);
+    }
+  }, []);
+
+  // Multi-user & Cross-tab synchronization listener
+  useEffect(() => {
+    const handleSync = () => {
+      refreshAllFromBackend();
+    };
+
+    window.addEventListener('plm:project-sync', handleSync);
+    window.addEventListener('plm:part-sync', handleSync);
+    window.addEventListener('focus', handleSync);
+    
+    // Continuous multi-user synchronization polling interval (every 4 seconds)
+    const pollInterval = setInterval(() => {
+      refreshAllFromBackend();
+    }, 4000);
+
+    return () => {
+      window.removeEventListener('plm:project-sync', handleSync);
+      window.removeEventListener('plm:part-sync', handleSync);
+      window.removeEventListener('focus', handleSync);
+      clearInterval(pollInterval);
+    };
+  }, [refreshAllFromBackend]);
 
   const [operations] = useState(INITIAL_PROCESS_OPERATIONS);
   const [inventory, setInventory] = useState<any[]>(() => {
@@ -440,51 +540,36 @@ export const App: React.FC = () => {
   useEffect(() => {
     const loadAuthoritativeData = async () => {
       try {
-        const [dbProjects, dbUsers, dbDocs, dbNcrs, dbBoms, dbLogs] = await Promise.allSettled([
-          projectsApi.getAll(),
+        await refreshAllFromBackend();
+
+        const [dbUsers, dbLogs] = await Promise.allSettled([
           usersApi.getAll(),
-          documentsApi.getAll(),
-          ncrsApi.getAll(),
-          bomApi.getAll(),
           auditLogsApi.getAll(),
         ]);
 
-        if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value) && dbProjects.value.length > 0) {
-          setProjects(dbProjects.value);
-        }
         if (dbUsers.status === 'fulfilled' && Array.isArray(dbUsers.value) && dbUsers.value.length > 0) {
           setUserAccounts(dbUsers.value);
-        }
-        if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value) && dbDocs.value.length > 0) {
-          setDocuments(dbDocs.value);
-        }
-        if (dbNcrs.status === 'fulfilled' && Array.isArray(dbNcrs.value) && dbNcrs.value.length > 0) {
-          setNcrs(dbNcrs.value);
-        }
-        if (dbBoms.status === 'fulfilled' && dbBoms.value && Object.keys(dbBoms.value).length > 0) {
-          setBomTrees((prev) => ({ ...prev, ...dbBoms.value }));
         }
         if (dbLogs.status === 'fulfilled' && Array.isArray(dbLogs.value) && dbLogs.value.length > 0) {
           setAuditLogs(dbLogs.value);
         }
       } catch (err) {
-        console.warn('Backend sync failed, falling back to local dataset:', err);
+        console.warn('Backend initial boot sync failed:', err);
       }
     };
 
     loadAuthoritativeData();
-  }, []);
+  }, [refreshAllFromBackend]);
 
   const partsMap = React.useMemo<Record<string, PartItem>>(() => {
-    const list = parts && parts.length > 0 ? parts : INITIAL_PARTS;
-    return list.reduce<Record<string, PartItem>>((acc, part) => {
+    return parts.reduce<Record<string, PartItem>>((acc, part) => {
       acc[part.id] = part;
       acc[part.partNumber] = part;
       return acc;
     }, {});
   }, [parts]);
 
-  const selectedPart = partsMap[selectedPartId] || parts[0] || INITIAL_PARTS[0];
+  const selectedPart = partsMap[selectedPartId] || parts[0] || undefined;
 
   const logAction = (action: string, category: AuditLog['category'], targetId: string, details: string) => {
     const newLog: AuditLog = {
@@ -507,14 +592,11 @@ export const App: React.FC = () => {
   const handleLoginSuccess = async (user: UserAccount, mode: 'admin' | 'employee') => {
     setCurrentUser(user);
 
-    // Fetch fresh synchronized projects from MongoDB Atlas upon login
+    // Fetch fresh synchronized state across all PLM collections from MongoDB Atlas upon login
     try {
-      const freshProjects = await projectsApi.getAll();
-      if (freshProjects && Array.isArray(freshProjects) && freshProjects.length >= 0) {
-        setProjects(freshProjects);
-      }
+      await refreshAllFromBackend();
     } catch (e) {
-      console.warn('Could not refresh projects on login:', e);
+      console.warn('Could not refresh full PLM data on login:', e);
     }
 
     logAction(
@@ -775,6 +857,32 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDeleteDocument = async (docId: string) => {
+    const target = documents.find(d => d.id === docId || d.docNumber === docId);
+    try {
+      await documentsApi.delete(docId);
+    } catch (e) {
+      console.warn('Backend documentsApi delete error:', e);
+    }
+    const deletedDocIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_doc_ids') || '[]');
+    if (!deletedDocIds.includes(docId)) {
+      deletedDocIds.push(docId);
+      if (target?.docNumber && !deletedDocIds.includes(target.docNumber)) {
+        deletedDocIds.push(target.docNumber);
+      }
+      try {
+        localStorage.setItem('apex_plm_deleted_doc_ids', JSON.stringify(deletedDocIds));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setDocuments(prev => prev.filter(d => d.id !== docId && d.docNumber !== docId));
+    if (target) {
+      logAction('Deleted Document', 'DOCUMENT', target.docNumber, `Removed document "${target.title}" (${target.docNumber}) from vault.`);
+    }
+    window.dispatchEvent(new CustomEvent('plm:part-sync'));
+  };
+
   const handleArchiveNcr = (ncrId: string) => {
     const target = ncrs.find((n) => n.id === ncrId);
     ncrsApi.update(ncrId, { status: 'Archived' as NcrStatus }).catch(err => console.warn('Backend archive NCR error:', err.message));
@@ -916,6 +1024,7 @@ export const App: React.FC = () => {
               {(activeTab === 'admin_dashboard' || (activeTab === 'dashboard' && currentUser.systemRole === 'ADMIN')) && (
                 <AdminDashboard
                   parts={parts}
+                  projects={projects}
                   ecrs={ecrs}
                   ecns={ecns}
                   ncrs={ncrs}
@@ -1041,9 +1150,9 @@ export const App: React.FC = () => {
 
               {activeTab === 'bom' && (
                 <BOMManager
-                  rootNode={bomTrees[selectedPart?.id || ''] || bomTrees['PN-1001'] || INITIAL_BOM_TREES['PN-1001']}
+                  rootNode={bomTrees[selectedPart?.id || ''] || bomTrees['PN-1001'] || Object.values(bomTrees)[0]}
                   partsMap={partsMap}
-                  parts={parts && parts.length > 0 ? parts : INITIAL_PARTS}
+                  parts={parts}
                   selectedPartId={selectedPart?.id || selectedPartId}
                   currentUser={currentUser}
                   logAction={logAction}
@@ -1136,9 +1245,12 @@ export const App: React.FC = () => {
                 <DocumentVault
                   documents={documents}
                   partsMap={partsMap}
+                  currentUser={currentUser}
+                  onDeleteDocument={handleDeleteDocument}
                   onAddDocument={(doc) => {
                     documentsApi.create(doc).catch(err => console.warn('Backend create doc error:', err.message));
                     setDocuments((prev) => [doc, ...prev]);
+                    window.dispatchEvent(new CustomEvent('plm:part-sync'));
                   }}
                 />
               )}
