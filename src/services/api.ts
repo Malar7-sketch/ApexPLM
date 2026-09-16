@@ -8,11 +8,39 @@ export const API_BASE_URL = (
 
 const BASE_URL = API_BASE_URL;
 
-// Token management
+// Token and Session management
 const TOKEN_KEY = 'apex_plm_auth_token';
+const USER_KEY = 'apex_plm_current_user';
+const TAB_KEY = 'apex_plm_active_tab';
+
 export const getAuthToken = (): string | null => localStorage.getItem(TOKEN_KEY);
 export const setAuthToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
 export const clearAuthToken = (): void => localStorage.removeItem(TOKEN_KEY);
+
+export const getStoredUser = (): UserAccount | null => {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setStoredUser = (user: UserAccount): void => {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch (e) {
+    console.error('Failed to store user session:', e);
+  }
+};
+
+export const clearStoredUser = (): void => {
+  localStorage.removeItem(USER_KEY);
+};
+
+export const getStoredActiveTab = (): string | null => localStorage.getItem(TAB_KEY);
+export const setStoredActiveTab = (tab: string): void => localStorage.setItem(TAB_KEY, tab);
+export const clearStoredActiveTab = (): void => localStorage.removeItem(TAB_KEY);
 
 // Centralized request wrapper
 async function apiFetch<T>(
@@ -65,13 +93,22 @@ export const authApi = {
     if (res.token) {
       setAuthToken(res.token);
     }
+    if (res.user) {
+      setStoredUser(res.user);
+    }
     return res;
   },
   getMe: async () => {
-    return apiFetch<{ success: boolean; user: UserAccount }>('/api/auth/me');
+    const res = await apiFetch<{ success: boolean; user: UserAccount }>('/api/auth/me');
+    if (res.user) {
+      setStoredUser(res.user);
+    }
+    return res.user;
   },
   logout: () => {
     clearAuthToken();
+    clearStoredUser();
+    clearStoredActiveTab();
   },
 };
 

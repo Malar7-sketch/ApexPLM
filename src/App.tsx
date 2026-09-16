@@ -66,7 +66,14 @@ import {
   bomApi, 
   partsApi,
   auditLogsApi,
-  authApi 
+  authApi,
+  getStoredUser,
+  setStoredUser,
+  clearStoredUser,
+  getStoredActiveTab,
+  setStoredActiveTab,
+  clearStoredActiveTab,
+  getAuthToken
 } from './services/api';
 
 
@@ -135,8 +142,11 @@ class TabErrorBoundary extends React.Component<
 
 export const App: React.FC = () => {
   const { isDark } = useTheme();
-  // Authentication & Session State
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  // Authentication & Session State - Restored seamlessly across browser refresh
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    return getStoredUser();
+  });
+
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_users');
@@ -154,13 +164,41 @@ export const App: React.FC = () => {
       console.error('Failed to save user accounts:', e);
     }
   }, [userAccounts]);
+
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionMatrix>(DEFAULT_PERMISSION_MATRIX);
-  const [activeTab, setActiveTab] = useState<string>('employee_dashboard');
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const savedTab = getStoredActiveTab();
+    if (savedTab) return savedTab;
+    const stored = getStoredUser();
+    if (stored) {
+      return stored.systemRole === 'ADMIN' ? 'admin_dashboard' : 'employee_dashboard';
+    }
+    return 'employee_dashboard';
+  });
+
   const [productFilterStage, setProductFilterStage] = useState<string | undefined>(undefined);
   const [activeProjectIdForProduct, setActiveProjectIdForProduct] = useState<string | undefined>(undefined);
 
+  // Sync active user session to persistent storage
+  useEffect(() => {
+    if (currentUser) {
+      setStoredUser(currentUser);
+    } else {
+      clearStoredUser();
+    }
+  }, [currentUser]);
+
+  // Sync active tab to persistent storage
+  useEffect(() => {
+    if (activeTab && activeTab !== 'login') {
+      setStoredActiveTab(activeTab);
+    }
+  }, [activeTab]);
+
   const handleNavigateTab = (tab: string, filterStage?: string, projectId?: string) => {
     setActiveTab(tab);
+    setStoredActiveTab(tab);
     if (projectId) {
       setActiveProjectIdForProduct(projectId);
     }
@@ -536,10 +574,37 @@ export const App: React.FC = () => {
     }
   ]);
 
-  // Authoritative MongoDB Atlas Data Loader on Application Boot
+  // Authoritative MongoDB Atlas Data Loader & Session Validator on Application Boot
   useEffect(() => {
     const loadAuthoritativeData = async () => {
       try {
+        // 1. Validate / refresh user session with backend if token exists
+        const token = getAuthToken();
+        const cachedUser = getStoredUser();
+
+        if (token) {
+          try {
+            const liveUser = await authApi.getMe();
+            if (liveUser) {
+              setCurrentUser(liveUser);
+              setStoredUser(liveUser);
+            }
+          } catch (authErr: any) {
+            // Only log out if backend explicitly rejected the token (401 / 403)
+            if (authErr.status === 401 || authErr.status === 403) {
+              console.warn('Authentication token expired or account blocked. Logging out.');
+              authApi.logout();
+              setCurrentUser(null);
+            } else if (cachedUser) {
+              // Network issue / offline - keep local session intact
+              setCurrentUser(cachedUser);
+            }
+          }
+        } else if (cachedUser) {
+          setCurrentUser(cachedUser);
+        }
+
+        // 2. Refresh all PLM database state
         await refreshAllFromBackend();
 
         const [dbUsers, dbLogs] = await Promise.allSettled([
@@ -591,6 +656,11 @@ export const App: React.FC = () => {
 
   const handleLoginSuccess = async (user: UserAccount, mode: 'admin' | 'employee') => {
     setCurrentUser(user);
+    setStoredUser(user);
+
+    const defaultDashboard = user.systemRole === 'ADMIN' ? 'admin_dashboard' : 'employee_dashboard';
+    setActiveTab(defaultDashboard);
+    setStoredActiveTab(defaultDashboard);
 
     // Fetch fresh synchronized state across all PLM collections from MongoDB Atlas upon login
     try {
@@ -605,12 +675,6 @@ export const App: React.FC = () => {
       user.employeeId,
       `User ${user.name} logged in under role ${user.systemRole}.`
     );
-
-    if (user.systemRole === 'ADMIN') {
-      setActiveTab('admin_dashboard');
-    } else {
-      setActiveTab('employee_dashboard');
-    }
   };
 
   const handleLogout = () => {
