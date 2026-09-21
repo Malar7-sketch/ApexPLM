@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, AlertCircle } from 'lucide-react';
+import { Lock, AlertCircle, RefreshCw } from 'lucide-react';
 import { useTheme } from './context/ThemeContext';
 import { HeaderNav } from './components/HeaderNav';
 import { Sidebar } from './components/Sidebar';
@@ -61,6 +61,8 @@ import {
   setStoredActiveTab,
   clearStoredActiveTab,
   getAuthToken,
+  setAuthToken,
+  generateClientJwt,
   isTokenExpired,
   clearAllSessionData
 } from './services/api';
@@ -134,6 +136,13 @@ export const App: React.FC = () => {
   // Authentication & Session State - Restored seamlessly across browser refresh
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     return getStoredUser();
+  });
+
+  // Track session restoration on startup to prevent login page flash
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    const token = getAuthToken();
+    const user = getStoredUser();
+    return Boolean(token && !user);
   });
 
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
@@ -636,6 +645,8 @@ export const App: React.FC = () => {
         }
       } catch (err) {
         console.warn('Backend initial boot sync failed:', err);
+      } finally {
+        setIsRestoringSession(false);
       }
     };
 
@@ -673,6 +684,10 @@ export const App: React.FC = () => {
   const handleLoginSuccess = async (user: UserAccount, mode: 'admin' | 'employee') => {
     setCurrentUser(user);
     setStoredUser(user);
+    if (!getAuthToken()) {
+      setAuthToken(generateClientJwt(user));
+    }
+    setIsRestoringSession(false);
 
     const defaultDashboard = user.systemRole === 'ADMIN' ? 'admin_dashboard' : 'employee_dashboard';
     setActiveTab(defaultDashboard);
@@ -972,6 +987,23 @@ export const App: React.FC = () => {
     }
   };
 
+
+  // Render loading state while restoring session on startup/refresh
+  if (isRestoringSession) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 font-sans ${isDark ? 'bg-[#0B1220] text-[#F1F5F9]' : 'bg-[#F4F6F8] text-[#172033]'}`}>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+            <RefreshCw className="w-7 h-7 animate-spin" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <h2 className="text-lg font-bold tracking-tight">Restoring PLM Session</h2>
+            <p className="text-xs text-slate-400 font-mono">Verifying enterprise security credentials...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Render Login Page if Unauthenticated
   if (!currentUser) {
