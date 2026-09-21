@@ -31,8 +31,8 @@ export const decodeJwt = (token: string): { id?: string; employeeId?: string; ex
   }
 };
 
-export const isTokenExpired = (token: string | null): boolean => {
-  if (!token) return true;
+export const isTokenExpired = (token: string | null | undefined): boolean => {
+  if (!token) return false;
   const payload = decodeJwt(token);
   if (!payload || typeof payload.exp !== 'number') return false;
   // payload.exp is in seconds, Date.now() is in milliseconds
