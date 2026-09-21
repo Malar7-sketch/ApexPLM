@@ -8,18 +8,28 @@ import {
   Play 
 } from 'lucide-react';
 import type { PartItem } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface CfdSolverProps {
   part?: PartItem;
 }
 
-export const CfdSolver: React.FC<CfdSolverProps> = ({ part: propPart }) => {
+export const CfdSolver: React.FC<CfdSolverProps> = ({ part }) => {
   const { isDark } = useTheme();
-  const part = propPart || INITIAL_PARTS[0];
   const [fluidType, setFluidType] = useState<'air' | 'oil' | 'coolant'>('coolant');
   const [inletVelocity, setInletVelocity] = useState(15);
+
+  if (!part) {
+    return (
+      <div className={`rounded-2xl p-12 text-center border ${
+        isDark ? 'bg-[#111B2E] border-[#243149] text-[#94A3B8]' : 'bg-white border-[#E2E8F0] text-[#64748B]'
+      }`}>
+        <Wind className="w-12 h-12 mx-auto mb-3 opacity-40 text-cyan-500" />
+        <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>No Product / Part Selected</h3>
+        <p className="text-xs mt-1 max-w-sm mx-auto">Create or select a product part in Product Management to run CFD simulations.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-sans">

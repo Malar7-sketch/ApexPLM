@@ -14,7 +14,6 @@ import {
   Maximize2
 } from 'lucide-react';
 import type { PartItem, LifecycleStage, PartCategory } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface ItemMasterProps {

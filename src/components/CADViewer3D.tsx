@@ -24,7 +24,6 @@ import {
   Tag
 } from 'lucide-react';
 import type { PartItem, PermissionMatrix, AuditLog, StoredCadVaultFile } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import type { UserAccount } from '../data/mockUsers';
 import { 
   downloadCadVaultFile, 
@@ -67,7 +66,7 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   logAction,
   onNavigateTab
 }) => {
-  const part = rawPart || INITIAL_PARTS[0];
+  const part = rawPart;
   const { isDark } = useTheme();
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
     'root': true,
@@ -80,7 +79,7 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Selected Revision State
-  const [selectedRev, setSelectedRev] = useState<string>(part?.currentRev || 'A.4');
+  const [selectedRev, setSelectedRev] = useState<string>(part?.currentRev || 'A.1');
 
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
@@ -90,7 +89,7 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   // Sync selectedRev when part changes
   React.useEffect(() => {
     if (part) {
-      setSelectedRev(part.currentRev || 'A.4');
+      setSelectedRev(part.currentRev || 'A.1');
     }
   }, [part?.id, part?.currentRev]);
 
@@ -102,11 +101,11 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   const [isCadPreviewOpen, setIsCadPreviewOpen] = useState<boolean>(false);
 
   // Stored Files linked to this part/project
-  const storedFiles: StoredCadVaultFile[] = [
+  const storedFiles: StoredCadVaultFile[] = part ? [
     ...getStoredCadVaultFiles(part.id),
     ...getStoredCadVaultFiles(part.partNumber),
     ...(part.cadMetadata?.attachedFiles || [])
-  ].filter((f, idx, arr) => arr.findIndex(x => x.id === f.id || (x.fileName === f.fileName && x.dataUrl === f.dataUrl)) === idx);
+  ].filter((f, idx, arr) => arr.findIndex(x => x.id === f.id || (x.fileName === f.fileName && x.dataUrl === f.dataUrl)) === idx) : [];
 
   const toggleNode = (nodeId: string) => {
     setExpandedNodes((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
@@ -116,6 +115,22 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
     setToastMsg({ text, type });
     setTimeout(() => setToastMsg(null), 4000);
   };
+
+  if (!part) {
+    return (
+      <div className={`rounded-[18px] p-12 border shadow-sm text-center space-y-4 font-sans ${
+        isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+      }`}>
+        <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 inline-block">
+          <Box className="w-10 h-10" />
+        </div>
+        <h2 className={`text-xl font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>No CAD Model Loaded</h2>
+        <p className={`text-xs max-w-md mx-auto font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          No 3D mechanical component is currently active in the CAD vault. Create a product in Product Master or import a STEP CAD file to begin 3D visualization.
+        </p>
+      </div>
+    );
+  }
 
   // Download Trigger Handler
   const handleDownload = async (fileType: FileDownloadType) => {

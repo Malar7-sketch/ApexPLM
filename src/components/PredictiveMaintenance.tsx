@@ -10,20 +10,30 @@ import {
   ShieldCheck 
 } from 'lucide-react';
 import type { PartItem } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface PredictiveMaintenanceProps {
   part?: PartItem;
 }
 
-export const PredictiveMaintenance: React.FC<PredictiveMaintenanceProps> = ({ part: propPart }) => {
+export const PredictiveMaintenance: React.FC<PredictiveMaintenanceProps> = ({ part }) => {
   const { isDark } = useTheme();
-  const part = propPart || INITIAL_PARTS[0];
   const [workOrders] = useState([
     { id: 'WO-901', machine: 'Mazak INTEGREX 5-Axis #01', task: 'Replace Spindle Bearing & Re-lubricate', trigger: 'Vibration Anomaly (>0.45g)', RULHours: 42, status: 'Scheduled', priority: 'High' },
     { id: 'WO-902', machine: 'Haas VF-4SS Vertical Mill #02', task: 'Recalibrate Way Lube Pressure Transducer', trigger: 'Routine 500-Hr Preventive Run', RULHours: 280, status: 'In Progress', priority: 'Medium' }
   ]);
+
+  if (!part) {
+    return (
+      <div className={`rounded-2xl p-12 text-center border ${
+        isDark ? 'bg-[#111B2E] border-[#243149] text-[#94A3B8]' : 'bg-white border-[#E2E8F0] text-[#64748B]'
+      }`}>
+        <Wrench className="w-12 h-12 mx-auto mb-3 opacity-40 text-rose-500" />
+        <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>No Product / Part Selected</h3>
+        <p className="text-xs mt-1 max-w-sm mx-auto">Create or select a product part in Product Management to view predictive maintenance and asset telemetry.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-sans">

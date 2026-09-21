@@ -310,16 +310,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     const targetCode = projToDelete.code;
     const targetName = projToDelete.name;
 
-    // Track in permanent deleted set so local storage never restores it
-    try {
-      const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
-      if (targetId && !deletedSet.includes(targetId)) deletedSet.push(targetId);
-      if (targetCode && !deletedSet.includes(targetCode)) deletedSet.push(targetCode);
-      localStorage.setItem('apex_plm_deleted_project_ids', JSON.stringify(deletedSet));
-    } catch (e) {
-      console.error(e);
-    }
-
     try {
       // 1. Delete permanently from MongoDB Atlas
       await projectsApi.delete(targetId || targetCode).catch(err => {

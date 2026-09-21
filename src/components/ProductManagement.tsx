@@ -967,10 +967,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     const targetName = partToDelete.name;
 
     try {
-      // 1. Blacklist the deleted product ID and Part Number to prevent accidental recreation
-      recordDeletedProductId([targetId, targetPn]);
-
-      // 2. Permanently delete from MongoDB Atlas via backend API
+      // 1. Permanently delete from MongoDB Atlas via backend API
       try {
         await partsApi.delete(targetId);
       } catch (err: any) {

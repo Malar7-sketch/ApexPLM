@@ -15,7 +15,6 @@ import { DocumentViewerModal } from './DocumentViewerModal';
 import { EngineeringDrawingModal } from './EngineeringDrawingModal';
 import { generateEngineeringDrawingPdf } from '../utils/engineeringDrawingPdf';
 import { useTheme } from '../context/ThemeContext';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 
 interface DocumentVaultProps {
   documents: EngineeringDocument[];
@@ -152,7 +151,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
       {/* Grid of Documents */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDocs.map((doc) => {
-          const linkedPart = partsMap[doc.linkedPartId] || Object.values(partsMap)[0] || INITIAL_PARTS[0];
+          const linkedPart = partsMap[doc.linkedPartId] || Object.values(partsMap)[0];
           const isDownloading = downloadingDocId === doc.id;
 
           return (

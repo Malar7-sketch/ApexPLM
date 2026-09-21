@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { StageGate, UserPersona } from '../types/plm';
-import { USER_PERSONAS, INITIAL_STAGE_GATES } from '../data/mockPlmData';
+import { USER_PERSONAS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface StageGateTrackerProps {
@@ -22,11 +22,10 @@ interface StageGateTrackerProps {
 }
 
 export const StageGateTrackerInternal: React.FC<StageGateTrackerProps> = ({
-  gates: rawGates,
+  gates = [],
   currentPersona = 'admin',
   onToggleChecklistItem = () => {}
 }) => {
-  const gates = rawGates && rawGates.length > 0 ? rawGates : INITIAL_STAGE_GATES;
   const { isDark } = useTheme();
 
   const handleChecklistClick = (gateId: number, taskId: string) => {

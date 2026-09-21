@@ -201,19 +201,30 @@ const updateProject = async (req, res, next) => {
 // @access  Private
 const deleteProject = async (req, res, next) => {
   try {
-    const project = await findProjectByIdOrCode(req.params.id);
+    const rawParam = String(req.params.id || '').trim();
+    if (!rawParam) {
+      return res.status(400).json({ success: false, message: 'Project identifier is required.' });
+    }
+
+    const project = await findProjectByIdOrCode(rawParam);
     if (!project) {
-      // Attempt direct fallback removal by code or id pattern
-      const targetParam = String(req.params.id).trim();
+      // Direct fallback deletion
+      const regex = new RegExp(`^${rawParam}$`, 'i');
       const directDelete = await Project.findOneAndDelete({
-        $or: [{ code: targetParam }, { id: targetParam }],
+        $or: [{ code: rawParam }, { id: rawParam }, { code: regex }, { name: regex }],
       });
       if (directDelete) {
+        const pCode = directDelete.code;
+        const pId = directDelete._id.toString();
+        await Document.deleteMany({ $or: [{ projectId: pId }, { projectId: pCode }] });
+        await NCR.deleteMany({ $or: [{ projectId: pId }, { projectId: pCode }] });
+        await BOM.deleteMany({ $or: [{ projectId: pId }, { projectId: pCode }] });
+        await Part.updateMany({ $or: [{ projectId: pId }, { projectId: pCode }] }, { $unset: { projectId: '', projectName: '' } });
         return res.status(200).json({
           success: true,
-          message: `Project ${directDelete.name} (${directDelete.code}) deleted permanently from database.`,
-          deletedId: directDelete._id.toString(),
-          deletedCode: directDelete.code,
+          message: `Project ${directDelete.name} (${pCode}) deleted permanently from database.`,
+          deletedId: pId,
+          deletedCode: pCode,
         });
       }
       return res.status(404).json({
@@ -228,6 +239,7 @@ const deleteProject = async (req, res, next) => {
 
     // 1. Delete from MongoDB
     await Project.findByIdAndDelete(project._id);
+    await Project.deleteMany({ $or: [{ code: pCode }, { code: new RegExp(`^${pCode}$`, 'i') }] });
 
     // 2. Cascade cleanup/unlink from related collections in MongoDB
     await Document.deleteMany({

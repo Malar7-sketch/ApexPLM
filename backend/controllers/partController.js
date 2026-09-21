@@ -170,11 +170,16 @@ const updatePart = async (req, res, next) => {
 // @access  Private
 const deletePart = async (req, res, next) => {
   try {
-    const part = await findPartByIdOrNumber(req.params.id);
+    const rawParam = String(req.params.id || '').trim();
+    if (!rawParam) {
+      return res.status(400).json({ success: false, message: 'Part identifier is required.' });
+    }
+
+    const part = await findPartByIdOrNumber(rawParam);
     if (!part) {
-      const targetParam = String(req.params.id).trim();
+      const regex = new RegExp(`^${rawParam}$`, 'i');
       const directDelete = await Part.findOneAndDelete({
-        $or: [{ partNumber: targetParam }, { id: targetParam }],
+        $or: [{ partNumber: rawParam }, { id: rawParam }, { partNumber: regex }, { name: regex }],
       });
       if (directDelete) {
         const pNum = directDelete.partNumber;
@@ -198,6 +203,7 @@ const deletePart = async (req, res, next) => {
     const pNum = part.partNumber;
     const pId = part._id.toString();
     await Part.findByIdAndDelete(part._id);
+    await Part.deleteMany({ $or: [{ partNumber: pNum }, { partNumber: new RegExp(`^${pNum}$`, 'i') }] });
 
     // Cascade delete linked BOM, documents, and NCRs in MongoDB
     await BOM.deleteMany({ $or: [{ partId: pNum }, { partId: pId }, { 'rootNode.partNumber': pNum }, { 'rootNode.partId': pId }] });

@@ -11,7 +11,6 @@ import {
   Sliders
 } from 'lucide-react';
 import type { PartItem, CaeResult } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface CaeSolverProps {
@@ -20,9 +19,25 @@ interface CaeSolverProps {
 
 export const CaeSolver: React.FC<CaeSolverProps> = ({ part: propPart }) => {
   const { isDark } = useTheme();
-  const part = propPart || INITIAL_PARTS[0];
+  const part = propPart;
   const [loadForceKn, setLoadForceKn] = useState<number>(45);
   const [isDeforming, setIsDeforming] = useState<boolean>(true);
+
+  if (!part) {
+    return (
+      <div className={`rounded-[18px] p-12 border shadow-sm text-center space-y-4 font-sans ${
+        isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+      }`}>
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 inline-block">
+          <Activity className="w-10 h-10" />
+        </div>
+        <h2 className={`text-xl font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>No CAD Part for CAE Analysis</h2>
+        <p className={`text-xs max-w-md mx-auto font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          No mechanical component is loaded for Finite Element Analysis (FEA). Create a product master or import a STEP CAD model.
+        </p>
+      </div>
+    );
+  }
 
   // Dynamic FEA physics calculations based on applied load force
   const stressMpa = Math.round((loadForceKn / 45) * 215);

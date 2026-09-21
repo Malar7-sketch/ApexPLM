@@ -21,7 +21,7 @@ import { MOCK_USERS, type UserAccount } from '../data/mockUsers';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 
-import { authApi } from '../services/api';
+import { authApi, setAuthToken, setStoredUser, generateClientJwt } from '../services/api';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserAccount, mode: 'admin' | 'employee') => void;
@@ -123,6 +123,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, users }) =
           return;
         }
 
+        const clientToken = generateClientJwt(foundUser);
+        setAuthToken(clientToken);
+        setStoredUser(foundUser);
         setIsLoading(false);
         onLoginSuccess(foundUser, loginMode);
       } else {

@@ -22,7 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import type { UserAccount } from '../data/mockUsers';
-import type { PartItem, Project, EngineeringDocument, UserNotification } from '../types/plm';
+import type { PartItem, Project, EngineeringDocument, UserNotification, ECR, ECN } from '../types/plm';
 import { useTheme } from '../context/ThemeContext';
 
 interface EmployeeDashboardProps {
@@ -31,6 +31,8 @@ interface EmployeeDashboardProps {
   projects: Project[];
   documents: EngineeringDocument[];
   notifications: UserNotification[];
+  ecrs?: ECR[];
+  ecns?: ECN[];
   onNavigateTab: (tab: string) => void;
 }
 
@@ -40,10 +42,14 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
   projects,
   documents,
   notifications,
+  ecrs = [],
+  ecns = [],
   onNavigateTab
 }) => {
   const { isDark } = useTheme();
   const unreadNotifs = notifications.filter((n) => !n.isRead).length;
+  const pendingApprovalsCount = ecns.filter(e => e.pipelineStage !== 'Released').length + ecrs.filter(e => e.status === 'In Review' || e.status === 'Proposed').length;
+  const actionItemsCount = unreadNotifs + pendingApprovalsCount + parts.filter(p => p.isCheckedOut).length;
 
   return (
     <div className="space-y-6 font-sans">
@@ -98,7 +104,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <div className={`text-[10px] uppercase font-semibold ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>
               Action Items
             </div>
-            <div className="text-xl font-bold text-cyan-500">3 Active</div>
+            <div className="text-xl font-bold text-cyan-500">{actionItemsCount} Active</div>
           </div>
         </div>
       </div>
@@ -157,7 +163,7 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
           <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            2
+            {pendingApprovalsCount}
           </div>
           <div className="text-[11px] text-amber-500 font-medium">ECN Stage Signoff</div>
         </div>

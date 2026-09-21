@@ -31,7 +31,6 @@ import {
   Tag
 } from 'lucide-react';
 import type { BOMNode, PartItem } from '../types/plm';
-import { INITIAL_BOM_TREES, INITIAL_PARTS } from '../data/mockPlmData';
 import type { UserAccount } from '../data/mockUsers';
 import { generateBomExcel, generateBomPdf, flattenBomTree } from '../utils/bomExportEngine';
 import { EngineeringDrawingModal } from './EngineeringDrawingModal';
@@ -126,8 +125,8 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
 
 
   // Active root node for current view
-  const rootNode = initialRootNode || INITIAL_BOM_TREES['PN-1001'] || null;
-  const activePart = rootNode ? (partsMap[rootNode.partId || ''] || parts[0] || INITIAL_PARTS[0]) : INITIAL_PARTS[0];
+  const rootNode = initialRootNode || (selectedPartId && partsMap[selectedPartId] ? null : null);
+  const activePart = rootNode ? (partsMap[rootNode.partId || ''] || parts.find(p => p.id === rootNode.partId || p.partNumber === rootNode.partNumber) || parts[0] || null) : (parts[0] || null);
 
   // Initialize revision & expanded nodes
   useEffect(() => {

@@ -14,7 +14,6 @@ import {
   ExternalLink
 } from 'lucide-react';
 import type { PartItem, DigitalThreadStageId } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface DigitalThreadProps {
@@ -22,21 +21,37 @@ interface DigitalThreadProps {
 }
 
 export const DigitalThread: React.FC<DigitalThreadProps> = ({ part: rawPart }) => {
-  const part = rawPart || INITIAL_PARTS[0];
+  const part = rawPart;
   const { isDark } = useTheme();
   const [activeStage, setActiveStage] = useState<DigitalThreadStageId>('product');
 
+  if (!part) {
+    return (
+      <div className={`rounded-[18px] p-12 border shadow-sm text-center space-y-4 font-sans ${
+        isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+      }`}>
+        <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 inline-block">
+          <GitMerge className="w-10 h-10" />
+        </div>
+        <h2 className={`text-xl font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>No Active Product for Digital Thread</h2>
+        <p className={`text-xs max-w-md mx-auto font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          No product records found. Create or select a mechanical product master in Product Management to trace requirements, CAD, BOM, CAPP, and quality logs.
+        </p>
+      </div>
+    );
+  }
+
   const STAGES: { id: DigitalThreadStageId; label: string; icon: any; summary: string }[] = [
     { id: 'product', label: '1. Product Requirements', icon: Box, summary: 'System specification & envelope freeze' },
-    { id: 'cad', label: '2. 3D CAD Geometry', icon: Box, summary: `${part.cadMetadata.fileName} (${part.cadMetadata.format})` },
-    { id: 'drawing', label: '3. 2D ASME Drawing', icon: FileText, summary: 'DWG-GBX-5000-01 Rev B.1' },
-    { id: 'ebom', label: '4. Engineering BOM', icon: Layers, summary: '8 CAD Component line items' },
-    { id: 'mbom', label: '5. Manufacturing BOM', icon: Wrench, summary: '+2 Process consumables (grease, sealant)' },
-    { id: 'capp', label: '6. Process Plan (CAPP)', icon: Cpu, summary: 'Op 10 -> Op 20 -> Op 30 Mazak Routing' },
-    { id: 'supplier', label: '7. Supplier Sourcing', icon: Building2, summary: 'VND-PREC-902 (Apex Precision Corp)' },
-    { id: 'manufacturing', label: '8. Shop Floor Build', icon: Cpu, summary: 'Batch #B-902 Mazak INTEGREX Run' },
-    { id: 'inspection', label: '9. CMM Inspection', icon: ShieldCheck, summary: 'First Article FAI Report #INSP-CAR-510' },
-    { id: 'service', label: '10. Field Service (SBOM)', icon: RotateCcw, summary: 'KIT-SEAL-GBX-500 (2,500 hr interval)' }
+    { id: 'cad', label: '2. 3D CAD Geometry', icon: Box, summary: `${part.cadMetadata?.fileName || part.partNumber} (${part.cadMetadata?.format || 'STEP'})` },
+    { id: 'drawing', label: '3. 2D ASME Drawing', icon: FileText, summary: `DWG-${part.partNumber}-01 Rev ${part.currentRev || 'A.1'}` },
+    { id: 'ebom', label: '4. Engineering BOM', icon: Layers, summary: 'CAD Component line items' },
+    { id: 'mbom', label: '5. Manufacturing BOM', icon: Wrench, summary: 'Process consumables & raw stock' },
+    { id: 'capp', label: '6. Process Plan (CAPP)', icon: Cpu, summary: 'Op 10 -> Op 20 -> Op 30 Routing' },
+    { id: 'supplier', label: '7. Supplier Sourcing', icon: Building2, summary: 'Preferred Supplier' },
+    { id: 'manufacturing', label: '8. Shop Floor Build', icon: Cpu, summary: 'Production batch execution' },
+    { id: 'inspection', label: '9. CMM Inspection', icon: ShieldCheck, summary: 'Inspection & Metrology Report' },
+    { id: 'service', label: '10. Field Service (SBOM)', icon: RotateCcw, summary: 'Maintenance & Service Parts' }
   ];
 
   const currentStageInfo = STAGES.find((s) => s.id === activeStage) || STAGES[0];

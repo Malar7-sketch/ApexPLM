@@ -118,32 +118,17 @@ export function purgeStoredCadVaultFiles(partIdOrNumber: string): void {
 
 /**
  * Check if a product ID or part number has been permanently deleted/blacklisted
+ * (Deprecated: MongoDB is single source of truth)
  */
-export function isProductIdDeleted(idOrPartNumber: string): boolean {
-  if (!idOrPartNumber) return false;
-  try {
-    const raw = localStorage.getItem('apex_plm_deleted_product_ids');
-    if (!raw) return false;
-    const deletedList = JSON.parse(raw) as string[];
-    const needle = idOrPartNumber.trim().toUpperCase();
-    return Array.isArray(deletedList) && deletedList.some(item => item.toUpperCase() === needle);
-  } catch {
-    return false;
-  }
+export function isProductIdDeleted(_idOrPartNumber: string): boolean {
+  return false;
 }
 
 /**
- * Record deleted product IDs to permanent blacklist to prevent accidental recreation
+ * Record deleted product IDs (No-op: MongoDB is single source of truth)
  */
-export function recordDeletedProductId(ids: string[]): void {
-  try {
-    const raw = localStorage.getItem('apex_plm_deleted_product_ids');
-    const existing = raw ? (JSON.parse(raw) as string[]) : [];
-    const updated = Array.from(new Set([...existing, ...ids.map(s => s.trim())]));
-    localStorage.setItem('apex_plm_deleted_product_ids', JSON.stringify(updated));
-  } catch (e) {
-    console.warn('Failed to record deleted product IDs:', e);
-  }
+export function recordDeletedProductId(_ids: string[]): void {
+  // MongoDB Atlas is single source of truth
 }
 
 /**

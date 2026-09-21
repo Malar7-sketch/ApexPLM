@@ -22,13 +22,16 @@ import {
   ChevronRight,
   Sparkles
 } from 'lucide-react';
-import type { PartItem, ECR, ECN, StageGate, AuditLog, QualityNCR, Project } from '../types/plm';
+import type { PartItem, ECR, ECN, StageGate, AuditLog, QualityNCR, Project, EngineeringDocument, BOMNode } from '../types/plm';
 import type { UserAccount } from '../data/mockUsers';
 import { useTheme } from '../context/ThemeContext';
 
 interface AdminDashboardProps {
   parts: PartItem[];
   projects?: Project[];
+  documents?: EngineeringDocument[];
+  bomTrees?: Record<string, BOMNode>;
+  operations?: any[];
   ecrs: ECR[];
   ecns: ECN[];
   ncrs: QualityNCR[];
@@ -40,6 +43,9 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   parts,
   projects = [],
+  documents = [],
+  bomTrees = {},
+  operations = [],
   ecrs,
   ecns,
   ncrs,
@@ -48,44 +54,121 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateTab
 }) => {
   const { isDark } = useTheme();
+  
+  // Authoritative MongoDB Live Counts
   const activeProjectsCount = projects.length;
-  const totalCadModels = 6;
-  const activeBoms = 6;
-  const pendingEcosCount = 1;
-  const openQualityIssuesCount = 1;
-  const mfgProcessesCount = 12;
-  const activeEmployeesCount = users.filter((u) => u.status === 'Active').length || 5;
+  const totalCadModels = documents.length;
+  const activeBoms = Object.keys(bomTrees).length;
+  const pendingEcosCount = ecrs.filter(e => e.status === 'In Review' || e.status === 'Proposed' || e.status === 'Draft' || e.status === 'Open').length + ecns.filter(e => e.pipelineStage !== 'Released').length;
+  const openQualityIssuesCount = ncrs.filter(n => n.status !== 'Closed' && n.status !== 'Archived').length;
+  const mfgProcessesCount = operations.length;
+  const activeEmployeesCount = users.filter((u) => u.status !== 'Blocked' && u.status !== 'Locked').length;
 
-  const lifecycleBreakdown = {
-    concept: 0,
-    design: 1,
-    review: 2,
-    prototype: 3,
-    manufacturing: 2,
-    quality: 1,
-    released: 3
+  const normalizeStage = (stage?: string): 'concept' | 'design' | 'prototype' | 'tooling' | 'production' | 'obsolete' => {
+    if (!stage) return 'concept';
+    const s = stage.trim().toLowerCase();
+    if (s.includes('concept')) return 'concept';
+    if (s.includes('design')) return 'design';
+    if (s.includes('proto')) return 'prototype';
+    if (s.includes('tool')) return 'tooling';
+    if (s.includes('prod') || s.includes('release') || s.includes('mfg') || s.includes('manufactur')) return 'production';
+    if (s.includes('obs')) return 'obsolete';
+    return 'concept';
   };
 
+  const lifecycleBreakdown = {
+    concept: parts.filter(p => normalizeStage(p.lifecycleStage) === 'concept').length,
+    design: parts.filter(p => normalizeStage(p.lifecycleStage) === 'design').length,
+    prototype: parts.filter(p => normalizeStage(p.lifecycleStage) === 'prototype').length,
+    tooling: parts.filter(p => normalizeStage(p.lifecycleStage) === 'tooling').length,
+    production: parts.filter(p => normalizeStage(p.lifecycleStage) === 'production').length,
+    obsolete: parts.filter(p => normalizeStage(p.lifecycleStage) === 'obsolete').length
+  };
+
+  // Dynamic Work Queue generated from live state
   const workQueueItems = [
-    { type: 'ECO', item: 'ECN-2026-014', owner: 'Design Team', due: 'Today', status: 'Review', actionText: 'Open', linkTab: 'eco' },
-    { type: 'CAD', item: 'ASM-EV-9000', owner: 'Alex Rivera', due: 'Today', status: 'Approval', actionText: 'Review', linkTab: 'cad' },
-    { type: 'NCR', item: 'NCR-026', owner: 'Dr. Elena Rostova', due: 'Tomorrow', status: 'Open', actionText: 'View', linkTab: 'quality' },
-    { type: 'BOM', item: 'BOM-EV-102', owner: 'Engineering Team', due: '24 Aug', status: 'Modified', actionText: 'Review', linkTab: 'bom' }
+    ...ecns.filter(e => e.pipelineStage !== 'Released').slice(0, 2).map(e => ({
+      type: 'ECO',
+      item: e.id || e.title,
+      owner: e.leadEngineer || 'Engineering Team',
+      due: e.targetReleaseDate || 'In Progress',
+      status: e.pipelineStage || 'Draft',
+      actionText: 'Review',
+      linkTab: 'eco'
+    })),
+    ...ecrs.filter(e => e.status !== 'Approved' && e.status !== 'Archived').slice(0, 2).map(e => ({
+      type: 'ECR',
+      item: e.id || e.title,
+      owner: e.requester || 'Requester',
+      due: 'Pending Review',
+      status: e.status || 'Draft',
+      actionText: 'Open',
+      linkTab: 'eco'
+    })),
+    ...parts.filter(p => p.isCheckedOut).slice(0, 2).map(p => ({
+      type: 'CAD',
+      item: p.partNumber,
+      owner: p.checkedOutBy || 'Design Engineer',
+      due: p.checkedOutDate || 'In Checkout',
+      status: 'Checked Out',
+      actionText: 'Review',
+      linkTab: 'cad'
+    })),
+    ...ncrs.filter(n => n.status !== 'Closed' && n.status !== 'Archived').slice(0, 2).map(n => ({
+      type: 'NCR',
+      item: n.ncrNumber || n.id,
+      owner: n.detectedBy || n.reportedBy || 'Quality Team',
+      due: n.dateReported || n.dateDetected || 'Active',
+      status: n.status || 'Open',
+      actionText: 'View',
+      linkTab: 'quality'
+    })),
+    ...Object.entries(bomTrees).slice(0, 1).map(([key, bom]) => ({
+      type: 'BOM',
+      item: bom.partNumber || key,
+      owner: 'Engineering Team',
+      due: 'Active Structure',
+      status: bom.revision || 'Active',
+      actionText: 'Review',
+      linkTab: 'bom'
+    }))
   ];
 
-  const recentActivities = [
-    { avatar: '👨‍💻', user: 'Alex Rivera', action: 'uploaded CAD File', object: 'ASM-EV-9000.SLDASM', timestamp: '10 mins ago' },
-    { avatar: '👷‍♂️', user: 'Marcus Vance', action: 'updated manufacturing routing', object: 'OP10 CNC Turning', timestamp: '25 mins ago' },
-    { avatar: '👩‍🔬', user: 'Dr. Elena Rostova', action: 'created Quality Report', object: 'NCR-026 CMM Out-of-Tolerance', timestamp: '1 hour ago' },
-    { avatar: '🛡️', user: 'Sarah Connor', action: 'approved ECN Notice', object: 'ECO-014 Frame Radius', timestamp: '2 hours ago' },
-    { avatar: '👨‍💻', user: 'Alex Rivera', action: 'changed BOM Revision', object: 'BOM-EV-102 (Rev A.3 → A.4)', timestamp: '3 hours ago' }
-  ];
+  // Dynamic Recent Activity generated from live audit logs
+  const recentActivities = (auditLogs && auditLogs.length > 0)
+    ? auditLogs.slice(0, 5).map((log) => ({
+        avatar: log.persona === 'quality' ? '👩‍🔬' : log.persona === 'mfg' ? '👷‍♂️' : log.persona === 'pm' ? '📋' : '👨‍💻',
+        user: log.user || 'System User',
+        action: log.action || 'performed update',
+        object: log.details || log.targetId || log.category || 'System Entity',
+        timestamp: log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'
+      }))
+    : [];
 
+  // Dynamic Pending Approvals generated from live ECNs / ECRs / CAD Checkouts
   const pendingApprovalsList = [
-    { title: 'ECO-2026-014', desc: 'Electric Scooter Frame Modification', stage: 'Engineering Review', type: 'ECO Approval', color: 'text-amber-500' },
-    { title: 'BOM-EV-102', desc: 'Battery Assembly BOM Structure', stage: 'Manufacturing Review', type: 'BOM Approval', color: 'text-cyan-500' },
-    { title: 'CAD-EV-9000', desc: 'Planetary Sun Gear STEP Revision A.4', stage: 'CAD Signoff', type: 'CAD Approval', color: 'text-purple-500' }
-  ];
+    ...ecns.filter(e => e.pipelineStage === 'Design Review' || e.pipelineStage === 'Mfg Review' || e.pipelineStage === 'Quality Review' || e.pipelineStage === 'Final Signoff' || e.pipelineStage === 'Draft').map(e => ({
+      title: e.id || 'ECO Notice',
+      desc: e.title || 'Engineering Change Order',
+      stage: e.pipelineStage || 'Review',
+      type: 'ECO Approval',
+      color: 'text-amber-500'
+    })),
+    ...ecrs.filter(e => e.status === 'In Review' || e.status === 'Proposed' || e.status === 'Draft').map(e => ({
+      title: e.id || 'ECR Request',
+      desc: e.title || 'Engineering Change Request',
+      stage: 'Engineering Review',
+      type: 'ECR Review',
+      color: 'text-cyan-500'
+    })),
+    ...parts.filter(p => p.isCheckedOut).map(p => ({
+      title: p.partNumber,
+      desc: `${p.name} (${p.currentRev})`,
+      stage: 'CAD Check-in Pending',
+      type: 'CAD Signoff',
+      color: 'text-purple-500'
+    }))
+  ].slice(0, 5);
 
   const systemHealthServices = [
     { service: 'Authentication SSO', status: 'Operational' },
@@ -213,7 +296,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className={`text-xs font-semibold ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>Products</span>
             <Box className="w-4 h-4 text-cyan-500" />
           </div>
-          <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>6</div>
+          <div className={`text-[28px] font-bold leading-none ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{parts.length}</div>
           <div className="text-[11px] text-cyan-500 font-medium flex items-center space-x-1">
             <CheckCircle2 className="w-3 h-3" />
             <span>Active Master Items</span>
@@ -435,31 +518,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </tr>
             </thead>
             <tbody>
-              {workQueueItems.map((row, i) => (
-                <tr key={i}>
-                  <td>
-                    <span className="badge-status badge-progress font-mono">
-                      {row.type}
-                    </span>
-                  </td>
-                  <td className="font-semibold">{row.item}</td>
-                  <td>{row.owner}</td>
-                  <td>{row.due}</td>
-                  <td>
-                    <span className="badge-status badge-pending">
-                      {row.status}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    <button
-                      onClick={() => onNavigateTab(row.linkTab)}
-                      className="btn-secondary btn-sm"
-                    >
-                      {row.actionText}
-                    </button>
+              {workQueueItems.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-xs text-slate-400">
+                    No actionable items currently pending in administrative work queue.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                workQueueItems.map((row, i) => (
+                  <tr key={i}>
+                    <td>
+                      <span className="badge-status badge-progress font-mono">
+                        {row.type}
+                      </span>
+                    </td>
+                    <td className="font-semibold">{row.item}</td>
+                    <td>{row.owner}</td>
+                    <td>{row.due}</td>
+                    <td>
+                      <span className="badge-status badge-pending">
+                        {row.status}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <button
+                        onClick={() => onNavigateTab(row.linkTab)}
+                        className="btn-secondary btn-sm"
+                      >
+                        {row.actionText}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -482,26 +573,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="space-y-2">
-            {recentActivities.map((act, i) => (
-              <div 
-                key={i} 
-                className={`p-3 rounded-xl border flex items-start space-x-3 ${
-                  isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                }`}
-              >
-                <span className={`text-lg p-1.5 rounded-lg border shrink-0 ${
-                  isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
-                }`}>{act.avatar}</span>
-                <div className="space-y-0.5 flex-1 min-w-0">
-                  <div className="text-xs">
-                    <strong className={isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}>{act.user}</strong>{' '}
-                    <span className={isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}>{act.action}</span>
-                  </div>
-                  <div className="text-cyan-500 font-medium text-[11px] truncate">{act.object}</div>
-                  <div className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>{act.timestamp}</div>
-                </div>
+            {recentActivities.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                No recent audit log activities recorded.
               </div>
-            ))}
+            ) : (
+              recentActivities.map((act, i) => (
+                <div 
+                  key={i} 
+                  className={`p-3 rounded-xl border flex items-start space-x-3 ${
+                    isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                  }`}
+                >
+                  <span className={`text-lg p-1.5 rounded-lg border shrink-0 ${
+                    isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+                  }`}>{act.avatar}</span>
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <div className="text-xs">
+                      <strong className={isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}>{act.user}</strong>{' '}
+                      <span className={isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}>{act.action}</span>
+                    </div>
+                    <div className="text-cyan-500 font-medium text-[11px] truncate">{act.object}</div>
+                    <div className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>{act.timestamp}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -515,36 +612,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span>Pending Approvals</span>
             </h3>
             <span className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>
-              3 QUEUED
+              {pendingApprovalsList.length} QUEUED
             </span>
           </div>
 
           <div className="space-y-2.5">
-            {pendingApprovalsList.map((app, i) => (
-              <div 
-                key={i} 
-                className={`p-3.5 rounded-xl border space-y-2 ${
-                  isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={`font-bold text-xs ${app.color}`}>{app.title}</span>
-                  <span className="badge-status badge-draft text-[10px]">
-                    {app.type}
-                  </span>
-                </div>
-                <p className={`text-xs ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>{app.desc}</p>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-700/30">
-                  <span className={`text-[11px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>{app.stage}</span>
-                  <button
-                    onClick={() => onNavigateTab('eco')}
-                    className="btn-primary btn-sm"
-                  >
-                    Review
-                  </button>
-                </div>
+            {pendingApprovalsList.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                No pending engineering approvals queued.
               </div>
-            ))}
+            ) : (
+              pendingApprovalsList.map((app, i) => (
+                <div 
+                  key={i} 
+                  className={`p-3.5 rounded-xl border space-y-2 ${
+                    isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`font-bold text-xs ${app.color}`}>{app.title}</span>
+                    <span className="badge-status badge-draft text-[10px]">
+                      {app.type}
+                    </span>
+                  </div>
+                  <p className={`text-xs ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>{app.desc}</p>
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-700/30">
+                    <span className={`text-[11px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>{app.stage}</span>
+                    <button
+                      onClick={() => onNavigateTab('eco')}
+                      className="btn-primary btn-sm"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

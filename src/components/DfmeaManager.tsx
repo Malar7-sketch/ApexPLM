@@ -14,7 +14,6 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import type { DfmeaRow, PartItem } from '../types/plm';
-import { INITIAL_DFMEA } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface DfmeaManagerProps {
@@ -25,11 +24,10 @@ interface DfmeaManagerProps {
 }
 
 export const DfmeaManagerInternal: React.FC<DfmeaManagerProps> = ({ 
-  dfmeaRows: rawRows, 
+  dfmeaRows = [], 
   partsMap = {}, 
   onSelectPart = () => {}
 }) => {
-  const dfmeaRows = rawRows && rawRows.length > 0 ? rawRows : INITIAL_DFMEA;
   const { isDark } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');

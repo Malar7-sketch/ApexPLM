@@ -30,7 +30,6 @@ import {
 import type { EngineeringDocument, PartItem } from '../types/plm';
 import { useTheme } from '../context/ThemeContext';
 import { generateEngineeringDrawingPdf } from '../utils/engineeringDrawingPdf';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 
 interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -46,7 +45,37 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   part: propPart
 }) => {
   const { isDark } = useTheme();
-  const part = propPart || INITIAL_PARTS.find(p => p.id === doc.linkedPartId) || INITIAL_PARTS[0];
+  
+  const fallbackPart: PartItem = {
+    id: doc.linkedPartId || 'PART-DOC',
+    partNumber: doc.linkedPartId || doc.docNumber,
+    name: doc.title || 'Engineering Component',
+    description: doc.description || doc.title,
+    type: 'Component',
+    category: 'CNC Machined',
+    material: 'Aluminium 6061-T6',
+    weightKg: 1.25,
+    estimatedCost: 0,
+    actualCost: 0,
+    currentRev: doc.revision || 'Rev A.0',
+    lifecycleStage: 'concept',
+    isCheckedOut: false,
+    checkedOutBy: undefined,
+    cadMetadata: {
+      fileName: `${doc.docNumber}.step`,
+      format: 'STEP',
+      fileSize: '1.2 MB',
+      surfaceAreaCm2: 45.2,
+      volumeCm3: 18.5,
+      boundingDimensionsMm: [100, 50, 25],
+      geometryType: 'planetary_gearbox',
+      renderColor: '#3b82f6'
+    },
+    revisionHistory: [],
+    tags: []
+  };
+
+  const part: PartItem = propPart || fallbackPart;
 
   // Detect file type
   const getFileType = (): 'cad' | 'pdf' | 'doc' | 'fmea' | 'inspection' | 'compliance' | 'other' => {

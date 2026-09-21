@@ -431,12 +431,11 @@ const initialNCRs = [
   }
 ];
 
-const seedDatabase = async () => {
+const ensureInitialUsers = async () => {
   try {
-    // 1. Seed Users
     const userCount = await User.countDocuments();
     if (userCount === 0) {
-      console.log('Seeding initial PLM users with bcrypt encryption...');
+      console.log('Bootstrapping initial PLM users with bcrypt encryption...');
       for (const u of initialUsers) {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(u.password, salt);
@@ -445,52 +444,48 @@ const seedDatabase = async () => {
           passwordHash,
         });
       }
-      console.log(`Seeded ${initialUsers.length} users successfully.`);
-    } else {
-      console.log(`Users collection already has ${userCount} records.`);
+      console.log(`Bootstrapped ${initialUsers.length} system users successfully.`);
     }
+  } catch (error) {
+    console.error(`Error during user bootstrap: ${error.message}`);
+  }
+};
 
-    // Check if system has already completed first-time initialization
-    const isAlreadyInitialized = await AuditLog.findOne({ action: 'Database Initialization' });
+const seedDatabase = async () => {
+  try {
+    // 1. Seed Users
+    await ensureInitialUsers();
 
-    // 2. Seed Projects (Only on initial system bootstrap)
+    // 2. Seed Projects (Only when manual seed script is executed)
     const projectCount = await Project.countDocuments();
-    if (projectCount === 0 && !isAlreadyInitialized) {
+    if (projectCount === 0) {
       console.log('Seeding initial PLM projects into MongoDB...');
       await Project.insertMany(initialProjects);
       console.log(`Seeded ${initialProjects.length} projects successfully.`);
-    } else {
-      console.log(`Projects collection status: ${projectCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 3. Seed BOM (Only on initial system bootstrap)
+    // 3. Seed BOM
     const bomCount = await BOM.countDocuments();
-    if (bomCount === 0 && !isAlreadyInitialized) {
+    if (bomCount === 0) {
       console.log('Seeding initial BOM hierarchies...');
       await BOM.create(initialBOM);
       console.log('Seeded BOM trees successfully.');
-    } else {
-      console.log(`BOM collection status: ${bomCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 4. Seed Documents (Only on initial system bootstrap)
+    // 4. Seed Documents
     const docCount = await Document.countDocuments();
-    if (docCount === 0 && !isAlreadyInitialized) {
+    if (docCount === 0) {
       console.log('Seeding engineering documents into vault...');
       await Document.insertMany(initialDocuments);
       console.log(`Seeded ${initialDocuments.length} documents successfully.`);
-    } else {
-      console.log(`Documents collection status: ${docCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
-    // 5. Seed NCRs (Only on initial system bootstrap)
+    // 5. Seed NCRs
     const ncrCount = await NCR.countDocuments();
-    if (ncrCount === 0 && !isAlreadyInitialized) {
+    if (ncrCount === 0) {
       console.log('Seeding Quality NCR records...');
       await NCR.insertMany(initialNCRs);
       console.log(`Seeded ${initialNCRs.length} NCRs successfully.`);
-    } else {
-      console.log(`NCR collection status: ${ncrCount} records (DB Initialized: ${!!isAlreadyInitialized}).`);
     }
 
     // 6. Seed AuditLog
@@ -522,4 +517,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = seedDatabase;
+module.exports = { seedDatabase, ensureInitialUsers };
+

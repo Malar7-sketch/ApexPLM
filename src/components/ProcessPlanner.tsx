@@ -17,7 +17,6 @@ import {
   X
 } from 'lucide-react';
 import type { ProcessOperation, PartItem } from '../types/plm';
-import { INITIAL_PARTS } from '../data/mockPlmData';
 import { useTheme } from '../context/ThemeContext';
 
 interface ProcessPlannerProps {
@@ -26,11 +25,22 @@ interface ProcessPlannerProps {
   onAddOperation?: (op: ProcessOperation) => void;
 }
 
-export const ProcessPlannerInternal: React.FC<ProcessPlannerProps> = ({ part: rawPart, operations: initialOps = [] }) => {
-  const part = rawPart || INITIAL_PARTS[0];
+export const ProcessPlannerInternal: React.FC<ProcessPlannerProps> = ({ part, operations: initialOps = [] }) => {
   const { isDark } = useTheme();
   const [opsList, setOpsList] = useState<ProcessOperation[]>(initialOps);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  if (!part) {
+    return (
+      <div className={`rounded-2xl p-12 text-center border ${
+        isDark ? 'bg-[#111B2E] border-[#243149] text-[#94A3B8]' : 'bg-white border-[#E2E8F0] text-[#64748B]'
+      }`}>
+        <Cpu className="w-12 h-12 mx-auto mb-3 opacity-40 text-emerald-500" />
+        <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>No Product / Part Selected</h3>
+        <p className="text-xs mt-1 max-w-sm mx-auto">Create or select a product part in Product Management to configure CAPP manufacturing routing.</p>
+      </div>
+    );
+  }
   const [editingOp, setEditingOp] = useState<ProcessOperation | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);

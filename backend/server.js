@@ -7,7 +7,7 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const connectDB = require('./utils/db');
-const seedDatabase = require('./utils/seedData');
+const { ensureInitialUsers } = require('./utils/seedData');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 // Route imports
@@ -87,8 +87,8 @@ const startServer = async () => {
     // Connect to MongoDB Atlas
     await connectDB();
 
-    // Auto-seed initial data if collections are empty
-    await seedDatabase();
+    // Ensure initial system users exist for authentication bootstrap
+    await ensureInitialUsers();
 
     app.listen(PORT, () => {
       console.log(`ApexPLM backend running on port ${PORT}`);

@@ -6,7 +6,7 @@ const AuditLog = require('../models/AuditLog');
 const generateToken = (id) => {
   const secret = process.env.JWT_SECRET || 'apexplm_prod_secret_jwt_key_982431_secure_plm_auth';
   return jwt.sign({ id }, secret, {
-    expiresIn: '7d',
+    expiresIn: '3h',
   });
 };
 

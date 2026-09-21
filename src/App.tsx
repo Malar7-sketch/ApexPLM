@@ -39,21 +39,9 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { AccessDenied } from './components/AccessDenied';
 
 import { 
-  INITIAL_PARTS, 
-  INITIAL_BOM_TREES, 
-  INITIAL_ECRS, 
-  INITIAL_ECNS, 
-  INITIAL_STAGE_GATES, 
-  INITIAL_DOCUMENTS, 
-  INITIAL_QUALITY_NCRS,
   INITIAL_CAPAS,
   INITIAL_SUPPLIERS,
   INITIAL_TELEMETRY,
-  INITIAL_AUDIT_LOGS,
-  INITIAL_PROCESS_OPERATIONS,
-  INITIAL_INVENTORY,
-  INITIAL_DFMEA,
-  INITIAL_PFMEA,
   INITIAL_TOOLS
 } from './data/mockPlmData';
 import { MOCK_USERS, type UserAccount } from './data/mockUsers';
@@ -69,11 +57,12 @@ import {
   authApi,
   getStoredUser,
   setStoredUser,
-  clearStoredUser,
   getStoredActiveTab,
   setStoredActiveTab,
   clearStoredActiveTab,
-  getAuthToken
+  getAuthToken,
+  isTokenExpired,
+  clearAllSessionData
 } from './services/api';
 
 
@@ -154,7 +143,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error('Failed to load user accounts:', e);
     }
-    return MOCK_USERS;
+    return [];
   });
 
   useEffect(() => {
@@ -194,6 +183,28 @@ export const App: React.FC = () => {
     }
   }, [activeTab]);
 
+  // Enforce 3-hour session lifetime (heartbeat interval and window focus watcher)
+  useEffect(() => {
+    const checkSessionValidity = () => {
+      const token = getAuthToken();
+      if (currentUser && isTokenExpired(token)) {
+        console.warn('[ApexPLM] Session lifetime (3 hours) reached. Prompting login.');
+        clearAllSessionData();
+        setCurrentUser(null);
+      }
+    };
+
+    const timer = setInterval(checkSessionValidity, 30000); // Check every 30 seconds
+    window.addEventListener('focus', checkSessionValidity);
+    window.addEventListener('visibilitychange', checkSessionValidity);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', checkSessionValidity);
+      window.removeEventListener('visibilitychange', checkSessionValidity);
+    };
+  }, [currentUser]);
+
   const handleNavigateTab = (tab: string, filterStage?: string, projectId?: string) => {
     setActiveTab(tab);
     setStoredActiveTab(tab);
@@ -207,16 +218,13 @@ export const App: React.FC = () => {
     }
   };
 
-  // Master Data State
+  // Master Data State (Authoritative MongoDB Atlas Single Source of Truth)
   const [parts, setParts] = useState<PartItem[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_parts');
-      const deletedPartIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_part_ids') || '[]');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(p => p && !deletedPartIds.includes(p.id) && !deletedPartIds.includes(p.partNumber) && !deletedPartIds.includes((p as any)._id));
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error('Failed to load parts:', e);
@@ -243,24 +251,24 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem('apex_plm_ecrs');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const missing = INITIAL_ECRS.filter((init) => !parsed.some((p: ECR) => p.id === init.id));
-          return [...parsed, ...missing];
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
-      return INITIAL_ECRS;
-    } catch {
-      return INITIAL_ECRS;
+    } catch (e) {
+      console.error(e);
     }
+    return [];
   });
   const [ecns, setEcns] = useState<ECN[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_ecns');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_ECNS;
+    return [];
   });
 
   // Sync parts to localStorage
@@ -299,16 +307,13 @@ export const App: React.FC = () => {
     }
   }, [ecns]);
 
-  const [gates, setGates] = useState<StageGate[]>(INITIAL_STAGE_GATES);
+  const [gates, setGates] = useState<StageGate[]>([]);
   const [documents, setDocuments] = useState<EngineeringDocument[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_documents');
-      const deletedDocIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_doc_ids') || '[]');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(d => d && !deletedDocIds.includes(d.id) && !deletedDocIds.includes(d.docNumber) && !deletedDocIds.includes((d as any)._id));
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error('Failed to load documents:', e);
@@ -352,12 +357,9 @@ export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_projects');
-      const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(p => p && !deletedSet.includes(p.id) && !deletedSet.includes(p.code) && !deletedSet.includes((p as any)._id));
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error('Failed to load projects from storage:', e);
@@ -377,42 +379,38 @@ export const App: React.FC = () => {
   // Real-time authoritative MongoDB synchronization helper for all PLM entities
   const refreshAllFromBackend = React.useCallback(async () => {
     try {
-      const [dbProjects, dbParts, dbDocs, dbNcrs, dbBoms] = await Promise.allSettled([
+      const [dbProjects, dbParts, dbDocs, dbNcrs, dbBoms, dbUsers, dbAuditLogs] = await Promise.allSettled([
         projectsApi.getAll(),
         partsApi.getAll(),
         documentsApi.getAll(),
         ncrsApi.getAll(),
         bomApi.getAll(),
+        usersApi.getAll(),
+        auditLogsApi.getAll(100),
       ]);
 
       if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value)) {
-        const deletedSet: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_project_ids') || '[]');
-        const filtered = dbProjects.value.filter(p => p && !deletedSet.includes(p.id) && !deletedSet.includes(p.code) && !deletedSet.includes((p as any)._id));
-        setProjects(filtered);
+        setProjects(dbProjects.value);
         try {
-          localStorage.setItem('apex_plm_projects', JSON.stringify(filtered));
+          localStorage.setItem('apex_plm_projects', JSON.stringify(dbProjects.value));
         } catch (e) {
           console.error(e);
         }
       }
 
       if (dbParts.status === 'fulfilled' && Array.isArray(dbParts.value)) {
-        const deletedPartIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_part_ids') || '[]');
-        const filteredParts = dbParts.value.filter(p => p && !deletedPartIds.includes(p.id) && !deletedPartIds.includes(p.partNumber) && !deletedPartIds.includes((p as any)._id));
-        setParts(filteredParts);
+        setParts(dbParts.value);
         try {
-          localStorage.setItem('apex_plm_parts', JSON.stringify(filteredParts));
+          localStorage.setItem('apex_plm_parts', JSON.stringify(dbParts.value));
         } catch (e) {
           console.error(e);
         }
       }
 
       if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value)) {
-        const deletedDocIds: string[] = JSON.parse(localStorage.getItem('apex_plm_deleted_doc_ids') || '[]');
-        const filteredDocs = dbDocs.value.filter(d => d && !deletedDocIds.includes(d.id) && !deletedDocIds.includes(d.docNumber) && !deletedDocIds.includes((d as any)._id));
-        setDocuments(filteredDocs);
+        setDocuments(dbDocs.value);
         try {
-          localStorage.setItem('apex_plm_documents', JSON.stringify(filteredDocs));
+          localStorage.setItem('apex_plm_documents', JSON.stringify(dbDocs.value));
         } catch (e) {
           console.error(e);
         }
@@ -428,9 +426,27 @@ export const App: React.FC = () => {
       }
 
       if (dbBoms.status === 'fulfilled' && dbBoms.value && typeof dbBoms.value === 'object') {
-        setBomTrees(prev => ({ ...prev, ...dbBoms.value }));
+        setBomTrees(dbBoms.value);
         try {
           localStorage.setItem('apex_plm_bom_trees', JSON.stringify(dbBoms.value));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbUsers.status === 'fulfilled' && Array.isArray(dbUsers.value)) {
+        setUserAccounts(dbUsers.value);
+        try {
+          localStorage.setItem('apex_plm_users', JSON.stringify(dbUsers.value));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (dbAuditLogs.status === 'fulfilled' && Array.isArray(dbAuditLogs.value)) {
+        setAuditLogs(dbAuditLogs.value);
+        try {
+          localStorage.setItem('apex_plm_audit_logs', JSON.stringify(dbAuditLogs.value));
         } catch (e) {
           console.error(e);
         }
@@ -463,7 +479,7 @@ export const App: React.FC = () => {
     };
   }, [refreshAllFromBackend]);
 
-  const [operations] = useState(INITIAL_PROCESS_OPERATIONS);
+  const [operations] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_inventory');
@@ -471,7 +487,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_INVENTORY;
+    return [];
   });
 
   // Sync inventory to localStorage
@@ -490,7 +506,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_DFMEA;
+    return [];
   });
 
   // Sync dfmeaRows to localStorage
@@ -509,7 +525,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_PFMEA;
+    return [];
   });
 
   // Sync pfmeaRows to localStorage
@@ -529,7 +545,7 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_AUDIT_LOGS;
+    return [];
   });
 
   // Sync auditLogs to localStorage
@@ -588,15 +604,15 @@ export const App: React.FC = () => {
               setStoredUser(liveUser);
             }
           } catch (authErr: any) {
-            // ONLY log out if backend explicitly rejected the token with confirmed 401 / 403
             const status = authErr?.status || authErr?.response?.status;
-            if (status === 401 || status === 403) {
-              console.warn('Authentication token expired or account blocked. Logging out.');
+            // ONLY log out if the token has actually expired (3-hour lifetime) or account is explicitly blocked (403)
+            if (isTokenExpired(token) || status === 403) {
+              console.warn('[ApexPLM] Authentication token expired or account blocked. Logging out.');
               authApi.logout();
               setCurrentUser(null);
             } else if (cachedUser) {
-              // Network issue / Render cold start / timeout - keep local session intact
-              console.warn('Backend session verification unreachable or delayed. Retaining cached session.');
+              // Network timeout / Render cold start / temporary connection glitch -> retain authenticated session
+              console.info('[ApexPLM] Remote backend busy/unreachable. Retaining cached user session.');
               setCurrentUser(cachedUser);
             }
           }
@@ -1089,6 +1105,9 @@ export const App: React.FC = () => {
                 <AdminDashboard
                   parts={parts}
                   projects={projects}
+                  documents={documents}
+                  bomTrees={bomTrees}
+                  operations={operations}
                   ecrs={ecrs}
                   ecns={ecns}
                   ncrs={ncrs}
@@ -1105,6 +1124,8 @@ export const App: React.FC = () => {
                   projects={projects}
                   documents={documents}
                   notifications={notifications}
+                  ecrs={ecrs}
+                  ecns={ecns}
                   onNavigateTab={handleNavigateTab}
                 />
               )}
@@ -1214,7 +1235,7 @@ export const App: React.FC = () => {
 
               {activeTab === 'bom' && (
                 <BOMManager
-                  rootNode={bomTrees[selectedPart?.id || ''] || bomTrees['PN-1001'] || Object.values(bomTrees)[0]}
+                  rootNode={selectedPart ? (bomTrees[selectedPart.id] || bomTrees[selectedPart.partNumber] || Object.values(bomTrees)[0] || null) : (Object.values(bomTrees)[0] || null)}
                   partsMap={partsMap}
                   parts={parts}
                   selectedPartId={selectedPart?.id || selectedPartId}

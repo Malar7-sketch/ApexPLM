@@ -8,14 +8,63 @@ export const API_BASE_URL = (
 
 const BASE_URL = API_BASE_URL;
 
-// Token and Session management with localStorage + sessionStorage redundancy
+// Token and Session management with localStorage + sessionStorage redundancy (3-Hour Lifetime)
 const TOKEN_KEY = 'apex_plm_auth_token';
 const USER_KEY = 'apex_plm_current_user';
 const TAB_KEY = 'apex_plm_active_tab';
 
+export const decodeJwt = (token: string): { id?: string; employeeId?: string; exp?: number; iat?: number; [key: string]: any } | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
+export const isTokenExpired = (token: string | null): boolean => {
+  if (!token) return true;
+  const payload = decodeJwt(token);
+  if (!payload || typeof payload.exp !== 'number') return false;
+  // payload.exp is in seconds, Date.now() is in milliseconds
+  return Date.now() >= payload.exp * 1000;
+};
+
+export const generateClientJwt = (user: UserAccount): string => {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const nowSec = Math.floor(Date.now() / 1000);
+  const expSec = nowSec + 3 * 3600; // Exact 3-hour lifetime (10,800 seconds)
+  const payload = btoa(JSON.stringify({
+    id: user.id || user.employeeId,
+    employeeId: user.employeeId,
+    name: user.name,
+    email: user.email,
+    role: user.systemRole,
+    iat: nowSec,
+    exp: expSec
+  }));
+  return `${header}.${payload}.apexplm_client_sig`;
+};
+
 export const getAuthToken = (): string | null => {
   try {
-    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+    if (isTokenExpired(token)) {
+      console.warn('[ApexPLM Auth] JWT token has expired (3-hour lifetime reached).');
+      clearAllSessionData();
+      return null;
+    }
+    return token;
   } catch {
     return null;
   }
@@ -41,6 +90,11 @@ export const clearAuthToken = (): void => {
 
 export const getStoredUser = (): UserAccount | null => {
   try {
+    const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    if (token && isTokenExpired(token)) {
+      clearAllSessionData();
+      return null;
+    }
     const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
@@ -71,6 +125,10 @@ export const clearStoredUser = (): void => {
 
 export const getStoredActiveTab = (): string | null => {
   try {
+    const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    if (token && isTokenExpired(token)) {
+      return null;
+    }
     return localStorage.getItem(TAB_KEY) || sessionStorage.getItem(TAB_KEY);
   } catch {
     return null;
@@ -93,6 +151,12 @@ export const clearStoredActiveTab = (): void => {
   } catch (e) {
     console.warn('Failed to clear active tab:', e);
   }
+};
+
+export const clearAllSessionData = (): void => {
+  clearAuthToken();
+  clearStoredUser();
+  clearStoredActiveTab();
 };
 
 // Centralized request wrapper
@@ -120,6 +184,15 @@ async function apiFetch<T>(
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
+      // ONLY clear session if server returned 401 AND the token has actually expired
+      if (res.status === 401 && !endpoint.includes('/auth/login')) {
+        const currentToken = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+        if (isTokenExpired(currentToken)) {
+          console.warn('[ApexPLM Auth] 401 received and token has expired. Clearing session.');
+          clearAllSessionData();
+        }
+      }
+
       const errorMsg = data.message || `API Error: ${res.status} ${res.statusText}`;
       const err = new Error(errorMsg);
       (err as any).status = res.status;
@@ -159,9 +232,7 @@ export const authApi = {
     return res.user;
   },
   logout: () => {
-    clearAuthToken();
-    clearStoredUser();
-    clearStoredActiveTab();
+    clearAllSessionData();
   },
 };
 
