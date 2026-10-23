@@ -712,7 +712,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       endDate: newProject.endDate,
       durationFormatted: durationInfo.text,
       teamMembers: [...teamMembers],
-      status: 'Not Started',
+      status: 'On Track',
       completionPercent: 0,
       budgetTotal: Number(newProject.budgetTotal) || 650000,
       budgetSpent: 0,
@@ -721,14 +721,27 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       tasks: createdTasks
     };
 
-    // Persist to MongoDB Atlas Database
-    projectsApi.create(createdProject).catch(err => {
-      console.warn('Backend project creation error:', err.message);
-    });
-
+    // Immediately display newly created project in UI and local selection
     setProjects(prev => [createdProject, ...prev]);
     setSelectedProjectId(createdProject.id);
     setIsCreateModalOpen(false);
+
+    // Persist to MongoDB Atlas Database
+    projectsApi.create(createdProject)
+      .then(savedProject => {
+        if (savedProject && (savedProject.id || (savedProject as any)._id)) {
+          const finalId = savedProject.id || (savedProject as any)._id;
+          setProjects(prev =>
+            prev.map(p =>
+              p.code === createdProject.code ? { ...createdProject, ...savedProject, id: finalId } : p
+            )
+          );
+          setSelectedProjectId(finalId);
+        }
+      })
+      .catch(err => {
+        console.warn('Backend project creation error:', err.message);
+      });
     
     logAction(
       'Project Created',

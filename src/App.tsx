@@ -423,11 +423,16 @@ export const App: React.FC = () => {
       ]);
 
       if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value)) {
-        setProjects(dbProjects.value);
-        try {
-          localStorage.setItem('apex_plm_projects', JSON.stringify(dbProjects.value));
-        } catch (e) {
-          console.error(e);
+        if (dbProjects.value.length > 0) {
+          setProjects(dbProjects.value);
+          try {
+            localStorage.setItem('apex_plm_projects', JSON.stringify(dbProjects.value));
+          } catch (e) {
+            console.error(e);
+          }
+        } else {
+          // If backend returned empty list (e.g. unseeded database), do not wipe out active or initial projects
+          setProjects(prev => (prev && prev.length > 0 ? prev : INITIAL_PROJECTS));
         }
       }
 

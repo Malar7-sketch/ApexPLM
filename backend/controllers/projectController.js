@@ -112,13 +112,16 @@ const createProject = async (req, res, next) => {
       });
     }
 
+    const allowedStatuses = ['On Track', 'At Risk', 'Delayed', 'Critical', 'Completed', 'Not Started', 'In Progress', 'Closed'];
+    const safeStatus = status && allowedStatuses.includes(status) ? status : 'On Track';
+
     const newProject = await Project.create({
       code: projectCode,
       name: name.trim(),
       customer: customer || '',
       program: program || '',
       stage: stage || 'Design',
-      status: status || 'On Track',
+      status: safeStatus,
       progress: progress || 0,
       startDate: startDate || new Date().toISOString().split('T')[0],
       endDate: endDate || new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0],
@@ -169,9 +172,14 @@ const updateProject = async (req, res, next) => {
     }
 
     const updates = req.body;
+    const allowedStatuses = ['On Track', 'At Risk', 'Delayed', 'Critical', 'Completed', 'Not Started', 'In Progress', 'Closed'];
     Object.keys(updates).forEach((key) => {
       if (key !== '_id' && key !== 'id') {
-        project[key] = updates[key];
+        if (key === 'status') {
+          project.status = allowedStatuses.includes(updates.status) ? updates.status : 'On Track';
+        } else {
+          project[key] = updates[key];
+        }
       }
     });
 

@@ -296,16 +296,40 @@ export const projectsApi = {
     return res.project;
   },
   create: async (projectData: Partial<Project>) => {
+    const payload = { ...projectData };
+    if (payload.status) {
+      if (['Completed', 'Closed'].includes(payload.status)) {
+        payload.status = 'Completed';
+      } else if (['At Risk', 'Delayed', 'Critical', 'Completed'].includes(payload.status)) {
+        // Keep as-is
+      } else {
+        // Map 'Not Started', 'In Progress' or custom values to 'On Track'
+        payload.status = 'On Track';
+      }
+    } else {
+      payload.status = 'On Track';
+    }
+
     const res = await apiFetch<{ success: boolean; project: Project; message: string }>('/api/projects', {
       method: 'POST',
-      body: JSON.stringify(projectData),
+      body: JSON.stringify(payload),
     });
     return res.project;
   },
   update: async (id: string, projectData: Partial<Project>) => {
+    const payload = { ...projectData };
+    if (payload.status) {
+      if (['Completed', 'Closed'].includes(payload.status)) {
+        payload.status = 'Completed';
+      } else if (['At Risk', 'Delayed', 'Critical', 'Completed'].includes(payload.status)) {
+        // Keep as-is
+      } else {
+        payload.status = 'On Track';
+      }
+    }
     const res = await apiFetch<{ success: boolean; project: Project; message: string }>(`/api/projects/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(projectData),
+      body: JSON.stringify(payload),
     });
     return res.project;
   },

@@ -58,7 +58,7 @@ const projectSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['On Track', 'At Risk', 'Delayed', 'Critical', 'Completed'],
+      enum: ['On Track', 'At Risk', 'Delayed', 'Critical', 'Completed', 'Not Started', 'In Progress', 'Closed'],
       default: 'On Track',
     },
     progress: {

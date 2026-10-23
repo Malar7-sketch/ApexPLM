@@ -7,7 +7,7 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const connectDB = require('./utils/db');
-const { ensureInitialUsers } = require('./utils/seedData');
+const { ensureInitialUsers, seedDatabase } = require('./utils/seedData');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 // Route imports
@@ -89,6 +89,9 @@ const startServer = async () => {
 
     // Ensure initial system users exist for authentication bootstrap
     await ensureInitialUsers();
+
+    // Ensure database collections (projects, BOM, documents, NCRs) exist
+    await seedDatabase();
 
     app.listen(PORT, () => {
       console.log(`ApexPLM backend running on port ${PORT}`);
