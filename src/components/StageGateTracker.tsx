@@ -27,6 +27,13 @@ export const StageGateTrackerInternal: React.FC<StageGateTrackerProps> = ({
 }) => {
   const { isDark } = useTheme();
 
+  const activeGate = gates.find(g => g.status === 'In Progress') || gates.find(g => g.status === 'Upcoming');
+  const activePhaseText = gates.length === 0
+    ? 'No Active Stage Gates'
+    : activeGate
+    ? `Active Phase: Gate 0${activeGate.gateId} ${activeGate.gateName}`
+    : 'All Gates Completed';
+
   const handleChecklistClick = (gateId: number, taskId: string) => {
     onToggleChecklistItem(gateId, taskId);
   };
@@ -57,12 +64,30 @@ export const StageGateTrackerInternal: React.FC<StageGateTrackerProps> = ({
           isDark ? 'bg-[#0D1628] border-[#243149] text-cyan-400' : 'bg-[#F8FAFC] border-[#E2E8F0] text-cyan-600'
         }`}>
           <Zap className="w-4 h-4 text-amber-500 animate-pulse" />
-          <span className="font-semibold">Active Phase: Gate 2 Detailed Design & FEA Freeze</span>
+          <span className="font-semibold">{activePhaseText}</span>
         </div>
       </div>
 
-      {/* 5-Gate Horizontal Pipeline Timeline */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+      {gates.length === 0 ? (
+        <div className={`p-16 rounded-2xl border border-dashed text-center space-y-4 transition-colors ${
+          isDark ? 'bg-[#111B2E]/50 border-[#243149]' : 'bg-white border-[#E2E8F0]'
+        }`}>
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+            <Award className="w-7 h-7" />
+          </div>
+          <div className="space-y-1 max-w-sm mx-auto">
+            <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              No Stage-Gate Reviews Configured
+            </h3>
+            <p className="text-xs text-slate-400">
+              There are no active stage-gate governance pipelines defined. Stage gates will appear here when configured for project milestones.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 5-Gate Horizontal Pipeline Timeline */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
         {gates.map((gate) => {
           const isPassed = gate.status === 'Passed';
           const isInProgress = gate.status === 'In Progress';
@@ -203,6 +228,8 @@ export const StageGateTrackerInternal: React.FC<StageGateTrackerProps> = ({
           </div>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 };

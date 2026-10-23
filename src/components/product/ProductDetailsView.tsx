@@ -130,7 +130,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
   const inspectedRev: Revision | undefined = product.revisionHistory?.find(r => r.revId === inspectedRevId) || {
     revId: product.currentRev,
     date: '2026-08-01',
-    author: product.productOwner || 'Alex Rivera, PE',
+    author: product.productOwner || product.createdBy || 'Lead Engineer',
     changeSummary: 'Current active release',
     status: 'Released',
     technicalSpecs: product.technicalSpecs
@@ -271,7 +271,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
           type: newDocType as any,
           linkedPartId: product.id,
           revision: inspectedRevId,
-          author: currentUser.name || 'Alex Rivera, PE',
+          author: currentUser.name || 'Engineering Author',
           uploadDate: new Date().toISOString().split('T')[0],
           fileSize: (newDocFile.size / (1024 * 1024)).toFixed(2) + ' MB',
           status: 'Approved',
@@ -351,7 +351,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
       const { blob, filename } = await generateEngineeringDrawingPdf({
         part: product,
         revision: inspectedRevId,
-        authorName: currentUser.name || 'Alex Rivera, PE'
+        authorName: currentUser.name || 'Lead Design Engineer'
       });
 
       const reader = new FileReader();
@@ -365,7 +365,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
           type: '2D Drawing PDF',
           linkedPartId: product.id,
           revision: inspectedRevId,
-          author: currentUser.name || 'Alex Rivera, PE',
+          author: currentUser.name || 'Engineering Author',
           uploadDate: new Date().toISOString().split('T')[0],
           fileSize: `${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
           status: 'Approved',
@@ -674,19 +674,19 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Product Owner:</span>
-                <strong>{product.productOwner || 'Alex Rivera, PE'}</strong>
+                <strong>{product.productOwner || 'Unassigned'}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Design Engineer:</span>
-                <strong>{product.designEngineer || 'Alex Rivera, PE'}</strong>
+                <strong>{product.designEngineer || 'Unassigned'}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Manufacturing Engineer:</span>
-                <strong>{product.manufacturingEngineer || 'Marcus Vance'}</strong>
+                <strong>{product.manufacturingEngineer || 'Unassigned'}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Quality Engineer:</span>
-                <strong>{product.qualityEngineer || 'Dr. Elena Rostova'}</strong>
+                <strong>{product.qualityEngineer || 'Unassigned'}</strong>
               </div>
               <div className="sm:col-span-2">
                 <span className="text-slate-400 block text-[11px]">Description:</span>
@@ -1325,7 +1325,7 @@ export const ProductDetailsView: React.FC<ProductDetailsViewProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <strong className="text-white">Gate 01: Concept Architecture</strong>
               </div>
-              <p className="text-slate-400 text-[11px]">Approved by Alex Rivera, Lead Design Engineer</p>
+              <p className="text-slate-400 text-[11px]">Gate sign-off verified</p>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-block">
                 PASSED / SIGNED OFF
               </span>

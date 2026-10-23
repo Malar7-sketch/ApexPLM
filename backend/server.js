@@ -7,7 +7,7 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const connectDB = require('./utils/db');
-const { ensureInitialUsers, seedDatabase } = require('./utils/seedData');
+const { ensureInitialUsers } = require('./utils/seedData');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 // Route imports
@@ -76,6 +76,17 @@ app.use('/api/audit-logs', auditRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/parts', partRoutes);
 
+// Safe administrative dummy data cleanup endpoint
+const { cleanConfirmedDummyData } = require('./utils/cleanDummyData');
+app.post('/api/admin/clean-dummy-data', async (req, res, next) => {
+  try {
+    const summary = await cleanConfirmedDummyData();
+    res.status(200).json({ success: true, message: 'Confirmed dummy data safely purged.', summary });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Error Handling Middlewares
 app.use(notFound);
 app.use(errorHandler);
@@ -90,8 +101,8 @@ const startServer = async () => {
     // Ensure initial system users exist for authentication bootstrap
     await ensureInitialUsers();
 
-    // Ensure database collections (projects, BOM, documents, NCRs) exist
-    await seedDatabase();
+    // Note: Automatic database seeding disabled to ensure clean, user-driven data.
+    // Seed scripts must only be run on explicit manual request in development.
 
     app.listen(PORT, () => {
       console.log(`ApexPLM backend running on port ${PORT}`);

@@ -18,10 +18,7 @@ interface PredictiveMaintenanceProps {
 
 export const PredictiveMaintenance: React.FC<PredictiveMaintenanceProps> = ({ part }) => {
   const { isDark } = useTheme();
-  const [workOrders] = useState([
-    { id: 'WO-901', machine: 'Mazak INTEGREX 5-Axis #01', task: 'Replace Spindle Bearing & Re-lubricate', trigger: 'Vibration Anomaly (>0.45g)', RULHours: 42, status: 'Scheduled', priority: 'High' },
-    { id: 'WO-902', machine: 'Haas VF-4SS Vertical Mill #02', task: 'Recalibrate Way Lube Pressure Transducer', trigger: 'Routine 500-Hr Preventive Run', RULHours: 280, status: 'In Progress', priority: 'Medium' }
-  ]);
+  const [workOrders] = useState<Array<{ id: string; machine: string; task: string; trigger: string; RULHours: number; status: string; priority: string }>>([]);
 
   if (!part) {
     return (
@@ -107,22 +104,30 @@ export const PredictiveMaintenance: React.FC<PredictiveMaintenanceProps> = ({ pa
               </tr>
             </thead>
             <tbody>
-              {workOrders.map((wo) => (
-                <tr key={wo.id}>
-                  <td className="font-bold text-cyan-500 font-mono">{wo.id}</td>
-                  <td className={`font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{wo.machine}</td>
-                  <td className={isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}>{wo.task}</td>
-                  <td className="text-rose-500 font-semibold">{wo.trigger}</td>
-                  <td className="text-center font-bold text-amber-500 font-mono">{wo.RULHours} hrs</td>
-                  <td className="text-center">
-                    <span className={`badge-status text-[10px] ${
-                      wo.priority === 'High' ? 'badge-archived' : 'badge-review'
-                    }`}>
-                      {wo.priority}
-                    </span>
+              {workOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-slate-400 font-sans">
+                    No active maintenance work orders. Machinery sensors operating within nominal limits.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                workOrders.map((wo) => (
+                  <tr key={wo.id}>
+                    <td className="font-bold text-cyan-500 font-mono">{wo.id}</td>
+                    <td className={`font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{wo.machine}</td>
+                    <td className={isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}>{wo.task}</td>
+                    <td className="text-rose-500 font-semibold">{wo.trigger}</td>
+                    <td className="text-center font-bold text-amber-500 font-mono">{wo.RULHours} hrs</td>
+                    <td className="text-center">
+                      <span className={`badge-status text-[10px] ${
+                        wo.priority === 'High' ? 'badge-archived' : 'badge-review'
+                      }`}>
+                        {wo.priority}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

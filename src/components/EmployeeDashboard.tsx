@@ -345,53 +345,80 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
               <span>Assigned Action Items</span>
             </h3>
             <span className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>
-              DUE THIS WEEK
+              ACTIVE TASKS
             </span>
           </div>
 
-          <div className="space-y-2">
-            <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
-              isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
-            }`}>
-              <div className="space-y-0.5">
-                <div className={`text-xs font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-                  Review STEP Geometry for PN-1002 Pinion Set
-                </div>
-                <div className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                  Project: EV Drivetrain &bull; High Priority
-                </div>
-              </div>
-              <span className="badge-status badge-progress shrink-0">In Progress</span>
-            </div>
+          {(() => {
+            const dynamicActionItems: Array<{ id: string; title: string; subtitle: string; status: string; badgeClass: string }> = [];
 
-            <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
-              isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
-            }`}>
-              <div className="space-y-0.5">
-                <div className={`text-xs font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-                  Validate OP20 Milling Fixture Tolerance Limits
-                </div>
-                <div className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                  Project: Planetary Gearbox &bull; Standard Priority
-                </div>
-              </div>
-              <span className="badge-status badge-pending shrink-0">Pending Review</span>
-            </div>
+            // 1. Pending ECRs
+            ecrs.filter(e => e.status === 'In Review' || e.status === 'Proposed').forEach(ecr => {
+              dynamicActionItems.push({
+                id: `ecr-${ecr.id}`,
+                title: `Engineering Review: ${ecr.id} - ${ecr.title}`,
+                subtitle: `Target: ${ecr.targetProductId || 'Product'} • Severity: ${ecr.severity}`,
+                status: ecr.status,
+                badgeClass: 'badge-progress'
+              });
+            });
 
-            <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
-              isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
-            }`}>
-              <div className="space-y-0.5">
-                <div className={`text-xs font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-                  ISO 9001 Metrology Calibration Signoff
+            // 2. Parts checked out
+            parts.filter(p => p.isCheckedOut).forEach(part => {
+              dynamicActionItems.push({
+                id: `part-${part.id}`,
+                title: `Checked Out CAD: ${part.partNumber} - ${part.name}`,
+                subtitle: `Rev ${part.currentRev} • Vault Lock Active`,
+                status: 'In Progress',
+                badgeClass: 'badge-progress'
+              });
+            });
+
+            // 3. Uncompleted project tasks
+            projects.forEach(proj => {
+              (proj.tasks || []).filter(t => t.status === 'In Progress').forEach(task => {
+                dynamicActionItems.push({
+                  id: `task-${task.id}`,
+                  title: `${task.taskName} (${proj.code})`,
+                  subtitle: `Project: ${proj.name} • Due: ${task.endDate}`,
+                  status: task.status,
+                  badgeClass: 'badge-progress'
+                });
+              });
+            });
+
+            if (dynamicActionItems.length === 0) {
+              return (
+                <div className="p-8 text-center text-xs text-slate-400 border border-dashed rounded-xl space-y-1">
+                  <div className="font-semibold text-slate-300">No pending action items assigned</div>
+                  <div>All engineering tasks, reviews, and signoffs are up to date.</div>
                 </div>
-                <div className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                  Project: QMS Audit &bull; Due Friday
-                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-2">
+                {dynamicActionItems.slice(0, 4).map(item => (
+                  <div
+                    key={item.id}
+                    className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
+                      isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+                    }`}
+                  >
+                    <div className="space-y-0.5 truncate pr-2">
+                      <div className={`text-xs font-semibold truncate ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                        {item.title}
+                      </div>
+                      <div className={`text-[11px] truncate ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                        {item.subtitle}
+                      </div>
+                    </div>
+                    <span className={`badge-status ${item.badgeClass} shrink-0`}>{item.status}</span>
+                  </div>
+                ))}
               </div>
-              <span className="badge-status badge-approved shrink-0">Scheduled</span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* Recent Engineering Documents */}
@@ -412,29 +439,35 @@ export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({
           </div>
 
           <div className="space-y-2">
-            {documents.slice(0, 3).map((doc) => (
-              <div 
-                key={doc.id}
-                onClick={() => onNavigateTab('documents')}
-                className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
-                  isDark 
-                    ? 'bg-[#0D1628] border-[#243149] hover:border-cyan-500' 
-                    : 'bg-[#F8FAFC] border-[#E2E8F0] hover:border-cyan-600'
-                }`}
-              >
-                <div className="space-y-0.5 truncate pr-2">
-                  <div className={`text-xs font-semibold truncate ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-                    {doc.title}
-                  </div>
-                  <div className={`text-[11px] truncate ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                    Doc: {doc.docNumber} &bull; Rev {doc.revision} &bull; {doc.type}
-                  </div>
-                </div>
-                <span className="badge-status badge-approved shrink-0">
-                  {doc.status}
-                </span>
+            {documents.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                No engineering documents uploaded yet.
               </div>
-            ))}
+            ) : (
+              documents.slice(0, 3).map((doc) => (
+                <div 
+                  key={doc.id}
+                  onClick={() => onNavigateTab('documents')}
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
+                    isDark 
+                      ? 'bg-[#0D1628] border-[#243149] hover:border-cyan-500' 
+                      : 'bg-[#F8FAFC] border-[#E2E8F0] hover:border-cyan-600'
+                  }`}
+                >
+                  <div className="space-y-0.5 truncate pr-2">
+                    <div className={`text-xs font-semibold truncate ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                      {doc.title}
+                    </div>
+                    <div className={`text-[11px] truncate ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                      Doc: {doc.docNumber} &bull; Rev {doc.revision} &bull; {doc.type}
+                    </div>
+                  </div>
+                  <span className="badge-status badge-approved shrink-0">
+                    {doc.status}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

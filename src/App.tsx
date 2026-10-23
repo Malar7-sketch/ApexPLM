@@ -38,25 +38,6 @@ import { AuditTrailPanel } from './components/AuditTrailPanel';
 import { NotificationCenter } from './components/NotificationCenter';
 import { AccessDenied } from './components/AccessDenied';
 
-import { 
-  INITIAL_PARTS,
-  INITIAL_BOM_TREES,
-  INITIAL_ECRS,
-  INITIAL_ECNS,
-  INITIAL_STAGE_GATES,
-  INITIAL_DOCUMENTS,
-  INITIAL_QUALITY_NCRS,
-  INITIAL_CAPAS,
-  INITIAL_SUPPLIERS,
-  INITIAL_PROJECTS,
-  INITIAL_TELEMETRY,
-  INITIAL_PROCESS_OPERATIONS,
-  INITIAL_INVENTORY,
-  INITIAL_DFMEA,
-  INITIAL_PFMEA,
-  INITIAL_TOOLS,
-  INITIAL_AUDIT_LOGS
-} from './data/mockPlmData';
 import { MOCK_USERS, type UserAccount } from './data/mockUsers';
 import { DEFAULT_PERMISSION_MATRIX, hasPermission, getRoleDashboardRoute } from './utils/rbac';
 import { 
@@ -109,7 +90,9 @@ import type {
   EngineeringDocument,
   Project,
   DfmeaRow,
-  PfmeaRow
+  PfmeaRow,
+  CAPA,
+  Supplier
 } from './types/plm';
 
 // Graceful Tab Error Boundary to prevent sidebar or page navigation freeze
@@ -253,57 +236,87 @@ export const App: React.FC = () => {
     }
   };
 
-  // Master Data State (Authoritative MongoDB Atlas Single Source of Truth)
+  // Confirmed dummy identifiers to purge legacy test records from browser storage & APIs
+  const SAMPLE_PROJECT_CODES = ['PRJ-EV-001', 'PRJ-EV-002', 'PRJ-EV-003'];
+  const SAMPLE_PART_IDS = [
+    'PN-1001', 'PN-1002', 'PN-1003', 'PN-1004', 'PN-1005', 'PN-1006',
+    'PN-1007', 'PN-1008', 'PN-1009', 'PN-1010', 'PN-1011', 'PN-1012',
+    'ASM-EV-9000', 'ASM-CAR-510', 'PN-PGR-511', 'PN-RNG-512', 'HSG-EV-901'
+  ];
+  const SAMPLE_DOC_NUMBERS = [
+    'DWG-GBX-5000-01', 'CAD-GBX-5000-01', 'SPEC-GBX-5000-A', 'DFMEA-2026-088',
+    'CAD-PRT-1004-03', 'INSP-FAIR-902', 'CERT-ENV-2026-04', 'SOW-SC-2026-11',
+    'DOC-ENG-2026-001', 'DOC-ENG-2026-002', 'DOC-ENG-2026-003',
+    'DOC-101', 'DOC-102', 'DOC-103', 'DOC-104', 'DOC-105', 'DOC-106', 'DOC-107', 'DOC-108'
+  ];
+  const SAMPLE_NCR_NUMBERS = ['NCR-2026-042', 'NCR-2026-088', 'NCR-2026-091', 'NCR-2026-104'];
+  const SAMPLE_ECR_IDS = ['ECR-2026-001', 'ECR-2026-002', 'ECR-2026-003', 'ECR-2026-042'];
+  const SAMPLE_ECN_IDS = ['ECN-2026-001', 'ECN-2026-002', 'ECN-2026-003'];
+
+  // Master Data State (Clean, User-Driven Single Source of Truth)
   const [parts, setParts] = useState<PartItem[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_parts');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          const realParts = parsed.filter(p => !SAMPLE_PART_IDS.includes(p.id) && !SAMPLE_PART_IDS.includes(p.partNumber));
+          return realParts;
+        }
       }
     } catch (e) {
       console.error('Failed to load parts:', e);
     }
-    return INITIAL_PARTS;
+    return [];
   });
-  const [selectedPartId, setSelectedPartId] = useState<string>('PN-1001');
+  const [selectedPartId, setSelectedPartId] = useState<string>('');
   const [bomTrees, setBomTrees] = useState<Record<string, BOMNode>>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_bom_trees');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return parsed;
+        if (parsed && typeof parsed === 'object') {
+          const cleanBoms: Record<string, BOMNode> = {};
+          for (const [key, val] of Object.entries(parsed as Record<string, BOMNode>)) {
+            if (!SAMPLE_PART_IDS.includes(key) && val && !['BOM-1001-ROOT', 'PN-1001'].includes(val.id) && !SAMPLE_PART_IDS.includes(val.partNumber)) {
+              cleanBoms[key] = val;
+            }
+          }
+          return cleanBoms;
         }
       }
     } catch (e) {
       console.error('Failed to load bomTrees:', e);
     }
-    return INITIAL_BOM_TREES;
+    return {};
   });
   const [ecrs, setEcrs] = useState<ECR[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_ecrs');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(e => !SAMPLE_ECR_IDS.includes(e.id));
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_ECRS;
+    return [];
   });
   const [ecns, setEcns] = useState<ECN[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_ecns');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(e => !SAMPLE_ECN_IDS.includes(e.id));
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_ECNS;
+    return [];
   });
 
   // Sync parts to localStorage
@@ -326,20 +339,14 @@ export const App: React.FC = () => {
     safeSetItem('apex_plm_ecns', JSON.stringify(ecns));
   }, [ecns]);
 
-  const [gates, setGates] = useState<StageGate[]>(INITIAL_STAGE_GATES);
+  const [gates, setGates] = useState<StageGate[]>([]);
   const [documents, setDocuments] = useState<EngineeringDocument[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_documents');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const sampleNumbers = [
-            'DWG-GBX-5000-01', 'CAD-GBX-5000-01', 'SPEC-GBX-5000-A', 'DFMEA-2026-088',
-            'CAD-PRT-1004-03', 'INSP-FAIR-902', 'CERT-ENV-2026-04', 'SOW-SC-2026-11',
-            'DOC-ENG-2026-001', 'DOC-ENG-2026-002', 'DOC-ENG-2026-003',
-            'DOC-101', 'DOC-102', 'DOC-103', 'DOC-104', 'DOC-105', 'DOC-106', 'DOC-107', 'DOC-108'
-          ];
-          return parsed.filter(d => !sampleNumbers.includes(d.id) && !sampleNumbers.includes(d.docNumber));
+          return parsed.filter(d => !SAMPLE_DOC_NUMBERS.includes(d.id) && !SAMPLE_DOC_NUMBERS.includes(d.docNumber));
         }
       }
     } catch (e) {
@@ -358,12 +365,14 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem('apex_plm_ncrs_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(n => !SAMPLE_NCR_NUMBERS.includes(n.id) && !SAMPLE_NCR_NUMBERS.includes(n.ncrNumber));
+        }
       }
     } catch (e) {
       console.error('Failed to load NCRs from storage:', e);
     }
-    return INITIAL_QUALITY_NCRS;
+    return [];
   });
 
   // Sync NCRs to localStorage
@@ -371,19 +380,21 @@ export const App: React.FC = () => {
     safeSetItem('apex_plm_ncrs_v1', JSON.stringify(ncrs));
   }, [ncrs]);
 
-  const [capas, setCapas] = useState(INITIAL_CAPAS);
-  const [suppliers] = useState(INITIAL_SUPPLIERS);
+  const [capas, setCapas] = useState<CAPA[]>([]);
+  const [suppliers] = useState<Supplier[]>([]);
   const [projects, setProjects] = useState<Project[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => !SAMPLE_PROJECT_CODES.includes(p.code) && !SAMPLE_PROJECT_CODES.includes(p.id));
+        }
       }
     } catch (e) {
       console.error('Failed to load projects from storage:', e);
     }
-    return INITIAL_PROJECTS;
+    return [];
   });
 
   // Sync projects to localStorage
@@ -405,44 +416,42 @@ export const App: React.FC = () => {
       ]);
 
       if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value)) {
-        if (dbProjects.value.length > 0) {
-          setProjects(dbProjects.value);
-          try {
-            localStorage.setItem('apex_plm_projects', JSON.stringify(dbProjects.value));
-          } catch (e) {
-            console.error(e);
-          }
-        } else {
-          // If backend returned empty list (e.g. unseeded database), do not wipe out active or initial projects
-          setProjects(prev => (prev && prev.length > 0 ? prev : INITIAL_PROJECTS));
+        const realProjects = dbProjects.value.filter(p => !SAMPLE_PROJECT_CODES.includes(p.code) && !SAMPLE_PROJECT_CODES.includes(p.id));
+        setProjects(realProjects);
+        try {
+          localStorage.setItem('apex_plm_projects', JSON.stringify(realProjects));
+        } catch (e) {
+          console.error(e);
         }
       }
 
       if (dbParts.status === 'fulfilled' && Array.isArray(dbParts.value)) {
-        setParts(dbParts.value);
-        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(dbParts.value)));
+        const realParts = dbParts.value.filter(p => !SAMPLE_PART_IDS.includes(p.id) && !SAMPLE_PART_IDS.includes(p.partNumber));
+        setParts(realParts);
+        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(realParts)));
       }
 
       if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value)) {
-        const sampleNumbers = [
-          'DWG-GBX-5000-01', 'CAD-GBX-5000-01', 'SPEC-GBX-5000-A', 'DFMEA-2026-088',
-          'CAD-PRT-1004-03', 'INSP-FAIR-902', 'CERT-ENV-2026-04', 'SOW-SC-2026-11',
-          'DOC-ENG-2026-001', 'DOC-ENG-2026-002', 'DOC-ENG-2026-003',
-          'DOC-101', 'DOC-102', 'DOC-103', 'DOC-104', 'DOC-105', 'DOC-106', 'DOC-107', 'DOC-108'
-        ];
-        const realDbDocs = dbDocs.value.filter(d => !sampleNumbers.includes(d.id) && !sampleNumbers.includes(d.docNumber));
+        const realDbDocs = dbDocs.value.filter(d => !SAMPLE_DOC_NUMBERS.includes(d.id) && !SAMPLE_DOC_NUMBERS.includes(d.docNumber));
         setDocuments(realDbDocs);
         safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(realDbDocs)));
       }
 
       if (dbNcrs.status === 'fulfilled' && Array.isArray(dbNcrs.value)) {
-        setNcrs(dbNcrs.value);
-        safeSetItem('apex_plm_ncrs_v1', JSON.stringify(dbNcrs.value));
+        const realDbNcrs = dbNcrs.value.filter(n => !SAMPLE_NCR_NUMBERS.includes(n.id) && !SAMPLE_NCR_NUMBERS.includes(n.ncrNumber));
+        setNcrs(realDbNcrs);
+        safeSetItem('apex_plm_ncrs_v1', JSON.stringify(realDbNcrs));
       }
 
       if (dbBoms.status === 'fulfilled' && dbBoms.value && typeof dbBoms.value === 'object') {
-        setBomTrees(dbBoms.value);
-        safeSetItem('apex_plm_bom_trees', JSON.stringify(dbBoms.value));
+        const cleanBoms: Record<string, BOMNode> = {};
+        for (const [key, val] of Object.entries(dbBoms.value)) {
+          if (!SAMPLE_PART_IDS.includes(key) && val && !['BOM-1001-ROOT', 'PN-1001'].includes(val.id) && !SAMPLE_PART_IDS.includes(val.partNumber)) {
+            cleanBoms[key] = val;
+          }
+        }
+        setBomTrees(cleanBoms);
+        safeSetItem('apex_plm_bom_trees', JSON.stringify(cleanBoms));
       }
 
       if (dbUsers.status === 'fulfilled' && Array.isArray(dbUsers.value)) {
@@ -482,18 +491,21 @@ export const App: React.FC = () => {
     };
   }, [refreshAllFromBackend]);
 
-  const [operations] = useState<any[]>(INITIAL_PROCESS_OPERATIONS);
+  const [operations] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_inventory');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          const sampleSkus = ['INV-RAW-001', 'INV-RAW-002', 'INV-WIP-001', 'INV-FG-001'];
+          return parsed.filter(i => !sampleSkus.includes(i.sku) && !sampleSkus.includes(i.id));
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_INVENTORY;
+    return [];
   });
 
   // Sync inventory to localStorage
@@ -510,12 +522,14 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem('apex_plm_dfmea');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(r => !['DFMEA-2026-001', 'DFMEA-2026-002', 'DFMEA-2026-003'].includes(r.id));
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_DFMEA;
+    return [];
   });
 
   // Sync dfmeaRows to localStorage
@@ -532,12 +546,14 @@ export const App: React.FC = () => {
       const saved = localStorage.getItem('apex_plm_pfmea');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(r => !['PFMEA-2026-01', 'PFMEA-2026-02', 'PFMEA-2026-03'].includes(r.id));
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_PFMEA;
+    return [];
   });
 
   // Sync pfmeaRows to localStorage
@@ -549,18 +565,20 @@ export const App: React.FC = () => {
     }
   }, [pfmeaRows]);
 
-  const [tools] = useState(INITIAL_TOOLS);
+  const [tools] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_audit_logs');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(l => l.id !== 'LOG-5001' && l.targetId !== 'APEX-CLUSTER');
+        }
       }
     } catch (e) {
       console.error(e);
     }
-    return INITIAL_AUDIT_LOGS;
+    return [];
   });
 
   // Sync auditLogs to localStorage
@@ -572,36 +590,31 @@ export const App: React.FC = () => {
     }
   }, [auditLogs]);
 
-  // Initial Notifications
-  const [notifications, setNotifications] = useState<UserNotification[]>([
-    {
-      id: 'NOTIF-101',
-      title: 'ECN Signoff Required',
-      message: 'Engineering review required for ECN-2026-042 (Planetary Sun Gear).',
-      category: 'Approvals',
-      timestamp: 'Today at 09:30 AM',
-      isRead: false,
-      linkTab: 'eco'
-    },
-    {
-      id: 'NOTIF-102',
-      title: 'CAD File Checked Out',
-      message: 'Alex Rivera checked out STEP file PN-1001 for DFM modifications.',
-      category: 'Engineering',
-      timestamp: 'Today at 09:14 AM',
-      isRead: false,
-      linkTab: 'cad'
-    },
-    {
-      id: 'NOTIF-103',
-      title: 'NCR Non-Conformance Created',
-      message: 'CMM Hardness Out of Tolerance on CMM Machine #2.',
-      category: 'Quality',
-      timestamp: 'Yesterday at 04:15 PM',
-      isRead: true,
-      linkTab: 'quality'
+  // Clean, Real Notifications
+  const [notifications, setNotifications] = useState<UserNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem('apex_plm_notifications');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const sampleNotifs = ['NOTIF-101', 'NOTIF-102', 'NOTIF-103'];
+          return parsed.filter(n => !sampleNotifs.includes(n.id));
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
-  ]);
+    return [];
+  });
+
+  // Sync notifications to localStorage
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('apex_plm_notifications', JSON.stringify(notifications));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [notifications]);
 
   // Authoritative MongoDB Atlas Data Loader & Session Validator on Application Boot
   useEffect(() => {

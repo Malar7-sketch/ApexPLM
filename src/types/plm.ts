@@ -144,6 +144,12 @@ export interface Revision {
   attachedDocIds?: string[];
   attachedFiles?: StoredCadVaultFile[];
   bomSnapshot?: BOMNode[];
+  revision?: string;
+  releaseDate?: string;
+  approver?: string;
+  changeNoticeId?: string;
+  changeDescription?: string;
+  comments?: string;
 }
 
 export interface PartItem {
@@ -182,6 +188,11 @@ export interface PartItem {
   technicalSpecs?: RevisionTechnicalSpecs;
   initialRev?: string;
   activeRev?: string;
+  createdBy?: string;
+  weightGrams?: number;
+  envelopeDimensions?: { x: number; y: number; z: number };
+  targetCost?: number;
+  lifecycle?: string;
 }
 
 export interface BOMNode {
@@ -202,6 +213,7 @@ export interface BOMNode {
   isSbomOnly?: boolean;
   sbomMaintenanceInterval?: string;
   stockStatus?: 'In Stock' | 'Low Stock' | 'Lead Time 6w';
+  status?: string;
   children?: BOMNode[];
 }
 

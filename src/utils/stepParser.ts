@@ -27,7 +27,7 @@ export function parseStepFileContent(text: string, fileName: string): ParsedStep
 
   let assemblyName = fileName.replace(/\.[^/.]+$/, '');
   let schema = 'AP203 / AP214';
-  let author = 'Alex Rivera (Lead Designer)';
+  let author = 'CAD Designer';
   let timestamp = new Date().toISOString().split('T')[0];
   let unit = 'mm';
 

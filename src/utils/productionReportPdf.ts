@@ -670,8 +670,8 @@ function drawKpiBox(doc: jsPDF, x: number, y: number, w: number, h: number, titl
 // -------------------------------------------------------------
 
 export async function generateDailyProductionPdf(options: ProductionReportMeta): Promise<{ blob: Blob; filename: string; reportId: string }> {
-  const dateStr = options.reportDate || '2026-08-24';
-  const author = options.generatedBy || 'Alex Rivera, PE';
+  const dateStr = options.reportDate || new Date().toISOString().split('T')[0];
+  const author = options.generatedBy || 'Manufacturing Engineer';
   const data = getDailyProductionData(dateStr);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -930,19 +930,19 @@ export async function generateDailyProductionPdf(options: ProductionReportMeta):
   const sigColW = 277 / 3;
   doc.setFontSize(6);
   doc.text('SHIFT SUPERVISOR:', 14, sigY + 16);
-  doc.text('Alex Rivera, PE (Electronic Signed)', 14, sigY + 22);
-  doc.text('Time: 22:15:00 UTC', 14, sigY + 28);
-  doc.text('Sign Hash: SIG-88F92A-ALEX', 14, sigY + 34);
+  doc.text(`${author} (Electronic Signed)`, 14, sigY + 22);
+  doc.text('Status: Authorized & Signed', 14, sigY + 28);
+  doc.text(`Sign Hash: SIG-${data.reportId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6)}-SUPV`, 14, sigY + 34);
 
   doc.text('MANUFACTURING ENGINEER:', 14 + sigColW, sigY + 16);
-  doc.text('Marcus Vance (Verified)', 14 + sigColW, sigY + 22);
+  doc.text('Operations Engineer (Verified)', 14 + sigColW, sigY + 22);
   doc.text('Toolpath & OEE Certified', 14 + sigColW, sigY + 28);
-  doc.text('Sign Hash: SIG-90E14B-MARCUS', 14 + sigColW, sigY + 34);
+  doc.text(`Sign Hash: SIG-${data.reportId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6)}-MFG`, 14 + sigColW, sigY + 34);
 
   doc.text('QUALITY ASSURANCE LEAD:', 14 + sigColW * 2, sigY + 16);
-  doc.text('Dr. Elena Rostova (Approved)', 14 + sigColW * 2, sigY + 22);
+  doc.text('Quality Assurance Lead (Approved)', 14 + sigColW * 2, sigY + 22);
   doc.text('First Article CMM Conformance Passed', 14 + sigColW * 2, sigY + 28);
-  doc.text('Sign Hash: SIG-33A19C-ELENA', 14 + sigColW * 2, sigY + 34);
+  doc.text(`Sign Hash: SIG-${data.reportId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6)}-QA`, 14 + sigColW * 2, sigY + 34);
 
   drawFooter(doc, pageW, pageH, data.reportId, 2, totalPages);
 
@@ -956,8 +956,8 @@ export async function generateDailyProductionPdf(options: ProductionReportMeta):
 // -------------------------------------------------------------
 
 export async function generateWeeklyProductionPdf(options: ProductionReportMeta): Promise<{ blob: Blob; filename: string; reportId: string }> {
-  const weekRange = options.weekRange || '18-Aug-2026 → 24-Aug-2026';
-  const author = options.generatedBy || 'Marcus Vance';
+  const weekRange = options.weekRange || 'Current Production Week';
+  const author = options.generatedBy || 'Manufacturing Engineer';
   const data = getWeeklyProductionData(weekRange);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -1238,8 +1238,8 @@ export async function generateWeeklyProductionPdf(options: ProductionReportMeta)
 // -------------------------------------------------------------
 
 export async function generateMonthlyProductionPdf(options: ProductionReportMeta): Promise<{ blob: Blob; filename: string; reportId: string }> {
-  const monthName = options.monthName || 'August 2026';
-  const author = options.generatedBy || 'David Sterling, VP Operations';
+  const monthName = options.monthName || 'Current Production Month';
+  const author = options.generatedBy || 'Operations Lead';
   const data = getMonthlyProductionData(monthName);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
@@ -1589,7 +1589,7 @@ export async function generateCustomProductionPdf(options: ProductionReportMeta)
   const startStr = options.startDate || '2026-08-05';
   const endStr = options.endDate || '2026-08-19';
   const pName = options.periodName || 'Custom Production Period';
-  const author = options.generatedBy || 'Alex Rivera, PE';
+  const author = options.generatedBy || 'Manufacturing Engineer';
   const data = getCustomRangeProductionData(startStr, endStr, pName);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -1777,7 +1777,7 @@ export async function generateCustomProductionPdf(options: ProductionReportMeta)
 
 export async function generateComparisonProductionPdf(options: ProductionReportMeta): Promise<{ blob: Blob; filename: string; reportId: string }> {
   const compType = options.compType || 'month';
-  const author = options.generatedBy || 'Alex Rivera, PE';
+  const author = options.generatedBy || 'Manufacturing Engineer';
   const periodAConfig = { label: options.periodA || 'August 2026' };
   const periodBConfig = { label: options.periodB || 'July 2026' };
   const multiConfigs = options.multiPeriods ? options.multiPeriods.map(p => ({ label: p })) : undefined;

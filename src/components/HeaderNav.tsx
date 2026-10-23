@@ -39,7 +39,7 @@ interface HeaderNavProps {
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
   currentUser,
-  unreadNotifCount = 3,
+  unreadNotifCount = 0,
   onLogout,
   onNavigateTab,
   onSearchQuery,
@@ -295,35 +295,26 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </div>
 
               <div className="space-y-1 text-xs">
-                <div 
-                  onClick={() => { onNavigateTab('eco'); setShowNotifMenu(false); }}
-                  className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                    isDark ? 'hover:bg-[#151F32]' : 'hover:bg-[#F8FAFC]'
-                  }`}
-                >
-                  <div className="font-semibold flex items-center justify-between">
-                    <span>ECN Signoff Required</span>
-                    <span className="text-[10px] text-amber-400 font-normal">09:30 AM</span>
+                {unreadNotifCount === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    No new notifications.
                   </div>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                    Engineering review for ECN-2026-042 (Planetary Sun Gear).
-                  </p>
-                </div>
-
-                <div 
-                  onClick={() => { onNavigateTab('cad'); setShowNotifMenu(false); }}
-                  className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                    isDark ? 'hover:bg-[#151F32]' : 'hover:bg-[#F8FAFC]'
-                  }`}
-                >
-                  <div className="font-semibold flex items-center justify-between">
-                    <span>CAD File Checked Out</span>
-                    <span className="text-[10px] text-slate-400 font-normal">09:14 AM</span>
+                ) : (
+                  <div 
+                    onClick={() => { onNavigateTab('notifications'); setShowNotifMenu(false); }}
+                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                      isDark ? 'hover:bg-[#151F32]' : 'hover:bg-[#F8FAFC]'
+                    }`}
+                  >
+                    <div className="font-semibold flex items-center justify-between">
+                      <span>Action Items Pending</span>
+                      <span className="text-[10px] text-amber-400 font-normal">Active</span>
+                    </div>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                      You have {unreadNotifCount} unread system notice(s).
+                    </p>
                   </div>
-                  <p className={`text-[11px] mt-0.5 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                    Alex Rivera checked out STEP file PN-1001 for DFM.
-                  </p>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -346,11 +337,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
             </div>
             <div className="text-left hidden sm:block truncate max-w-[130px]">
               <div className="text-xs font-semibold flex items-center space-x-1 truncate">
-                <span className="truncate">{currentUser?.name || 'Alex Rivera'}</span>
+                <span className="truncate">{currentUser?.name || 'User'}</span>
                 <ChevronDown className={`w-3 h-3 shrink-0 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`} />
               </div>
               <div className={`text-[10px] truncate ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                {currentUser?.role || 'Lead Mechanical Engineer'}
+                {currentUser?.role || 'Engineer'}
               </div>
             </div>
           </button>
@@ -364,13 +355,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               <div className={`p-3 rounded-xl border space-y-1 ${
                 isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
               }`}>
-                <div className="text-xs font-bold">{currentUser?.name || 'Alex Rivera'}</div>
+                <div className="text-xs font-bold">{currentUser?.name || 'User'}</div>
                 <div className={`text-[11px] truncate ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                  {currentUser?.email || 'alex.rivera@apexplm.io'}
+                  {currentUser?.email || ''}
                 </div>
                 <div className="flex items-center justify-between pt-1 text-[10px]">
                   <span className={isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}>
-                    {currentUser?.employeeId || 'EMP-10482'}
+                    {currentUser?.employeeId || ''}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full font-bold uppercase ${
                     isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-700'

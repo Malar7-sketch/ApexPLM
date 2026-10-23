@@ -514,7 +514,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                           </h3>
 
                           <p className="text-[11px] text-slate-400 line-clamp-1">
-                            {part.description || `${part.material || 'Standard Alloy'} &bull; Project: ${part.projectName || part.projectId || 'PRJ-01'}`}
+                            {part.description || `${part.material || 'Standard Alloy'} &bull; Project: ${part.projectName || part.projectId || 'Unassigned'}`}
                           </p>
                         </div>
                       </div>
@@ -574,10 +574,30 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                   );
                 })}
               </div>
+            ) : parts.length === 0 ? (
+              <div className="p-12 text-center border border-dashed rounded-xl space-y-4">
+                <Box className="w-12 h-12 mx-auto text-slate-500" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-200">No products yet</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    No product records have been created. Create your first product master to track revisions, CAD models, documents, and BOM.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('create')}
+                    className="btn-primary px-5 py-2 text-xs inline-flex items-center space-x-2 cursor-pointer font-bold shadow-lg shadow-cyan-500/25"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create First Product</span>
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="p-12 text-center border border-dashed rounded-xl space-y-3">
                 <Box className="w-10 h-10 mx-auto text-slate-500" />
-                <h4 className="text-xs font-bold text-slate-300">No Product Records Found</h4>
+                <h4 className="text-xs font-bold text-slate-300">No Product Records Match Filter</h4>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
                   No products matched the filter &quot;<strong className="text-cyan-400 uppercase font-mono">{filterStage.replace('_', ' ')}</strong>&quot;.
                 </p>

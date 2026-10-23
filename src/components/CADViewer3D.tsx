@@ -71,6 +71,7 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
 }) => {
   const part = rawPart;
   const { isDark } = useTheme();
+
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
     'root': true,
     'frame': true,
@@ -82,33 +83,50 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   // Selected Revision State
-  const [selectedRev, setSelectedRev] = useState<string>(part?.currentRev || 'A.4');
+  const [selectedRev, setSelectedRev] = useState<string>(part?.currentRev || 'Rev 01');
 
   const [isBomModalOpen, setIsBomModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
-  const [compareRevA, setCompareRevA] = useState<string>('A.3');
-  const [compareRevB, setCompareRevB] = useState<string>(part?.currentRev || 'A.4');
+  const [compareRevA, setCompareRevA] = useState<string>(part?.currentRev || 'Rev 01');
+  const [compareRevB, setCompareRevB] = useState<string>(part?.currentRev || 'Rev 01');
 
-  // Enriched 4-revision history for full lifecycle traceability
+  // Genuine revision history from active part only
   const partRevisions = useMemo(() => {
-    if (part?.revisionHistory && part.revisionHistory.length >= 3) {
-      const hasA1 = part.revisionHistory.some(r => r.revId === 'A.1');
-      if (!hasA1) {
-        return [
-          { revId: 'A.1', date: '2026-08-01', author: 'Alex Rivera', changeSummary: 'Initial Concept Architecture', status: 'Superseded' },
-          ...part.revisionHistory
-        ];
-      }
+    if (part?.revisionHistory && part.revisionHistory.length > 0) {
       return part.revisionHistory;
     }
-    return [
-      { revId: 'A.1', date: '2026-08-01', author: 'Alex Rivera', changeSummary: 'Initial Concept Architecture', status: 'Superseded' },
-      { revId: 'A.2', date: '2026-08-18', author: 'Alex Rivera', changeSummary: 'Initial DFM Optimization Release', status: 'Superseded' },
-      { revId: 'A.3', date: '2026-08-20', author: 'Alex Rivera', changeSummary: 'Material change to Aerospace Al 7075-T6', status: 'Released' },
-      { revId: 'A.4', date: '2026-08-22', author: 'Alex Rivera', changeSummary: 'Planetary Gearbox 18mm Radius & Dropout Clearance', status: 'Draft' }
-    ];
-  }, [part?.revisionHistory]);
+    if (part) {
+      return [
+        {
+          revId: part.currentRev || 'Rev 01',
+          date: new Date().toISOString().split('T')[0],
+          author: currentUser?.name || 'Lead Engineer',
+          changeSummary: 'Initial Product Release',
+          status: 'Released'
+        }
+      ];
+    }
+    return [];
+  }, [part?.revisionHistory, part?.currentRev, currentUser?.name]);
+
+  if (!part) {
+    return (
+      <div className={`rounded-2xl p-12 text-center border shadow-sm space-y-4 font-sans ${
+        isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+      }`}>
+        <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 inline-block">
+          <Box className="w-10 h-10" />
+        </div>
+        <h2 className={`text-xl font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+          No CAD Model Loaded
+        </h2>
+        <p className={`text-xs max-w-md mx-auto font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          No 3D CAD or assembly geometry is currently loaded. Create a product or upload STEP/CAD files in Product Management to view interactive 3D geometry and metadata.
+        </p>
+      </div>
+    );
+  }
 
   // Sync selectedRev when part changes
   React.useEffect(() => {
@@ -194,73 +212,16 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
     }
   };
 
-  // Assembly Tree Data
+  // Assembly Tree Data - Derived from actual active part
   const assemblyTreeData: AssemblyTreeNode = {
-    id: 'root',
-    partNumber: part.partNumber || 'ASM-EV-9000',
-    name: part.name || 'Electric Scooter Drivetrain & Frame Assembly',
-    description: 'Master Assembly Unit',
-    revision: part.currentRev || 'A.4',
+    id: part?.id || 'root',
+    partNumber: part?.partNumber || 'N/A',
+    name: part?.name || 'Assembly Unit',
+    description: part?.description || 'Mechanical Component',
+    revision: part?.currentRev || 'Rev 01',
     quantity: 1,
-    lifecycle: 'In Review',
-    children: [
-      {
-        id: 'frame',
-        partNumber: 'ASM-FRM-01',
-        name: 'Frame Assembly',
-        description: 'Chassis & Structural Tubes',
-        revision: 'A.3',
-        quantity: 1,
-        lifecycle: 'Released',
-        children: [
-          { id: 'f1', partNumber: 'PN-FRAME-01', name: 'Main Frame Tube', description: 'Al 7075 Extrusion', revision: 'A.2', quantity: 1, lifecycle: 'Released' },
-          { id: 'f2', partNumber: 'PN-FORK-04', name: 'Front Suspension Fork', description: 'Forged Machined Unit', revision: 'B.1', quantity: 1, lifecycle: 'Released' },
-          { id: 'f3', partNumber: 'PN-BATT-02', name: 'Battery Housing Mount', description: 'Sheet Metal Bracket', revision: 'A.0', quantity: 2, lifecycle: 'In Review' }
-        ]
-      },
-      {
-        id: 'drivetrain',
-        partNumber: 'ASM-DRV-90',
-        name: 'Drivetrain Sub-Assembly',
-        description: 'Motor & Planetary Transmission',
-        revision: 'A.4',
-        quantity: 1,
-        lifecycle: 'In Review',
-        children: [
-          { id: 'd1', partNumber: 'PN-MTR-900', name: 'Brushless DC Hub Motor', description: '750W Peak Torque', revision: 'C.0', quantity: 1, lifecycle: 'Released' },
-          { id: 'd2', partNumber: 'PN-SHFT-12', name: 'Drive Sun Shaft', description: 'CNC Turned Alloy Steel', revision: 'B.4', quantity: 1, lifecycle: 'In Review' },
-          { id: 'd3', partNumber: 'PN-GEAR-33', name: 'Planetary Gear 18T', description: 'Case Hardened Steel', revision: 'A.4', quantity: 3, lifecycle: 'In Review' },
-          { id: 'd4', partNumber: 'PN-CHN-05', name: 'Drive Chain Assembly', description: 'ISO 606 Standard Chain', revision: 'A.1', quantity: 1, lifecycle: 'Released' }
-        ]
-      },
-      {
-        id: 'wheel',
-        partNumber: 'ASM-WHL-10',
-        name: 'Wheel Assembly',
-        description: 'Rim, Tire & Bearings',
-        revision: 'A.2',
-        quantity: 2,
-        lifecycle: 'Released',
-        children: [
-          { id: 'w1', partNumber: 'PN-WHL-F', name: 'Front Pneumatic Wheel', description: '10-inch Alloy Rim', revision: 'A.3', quantity: 1, lifecycle: 'Released' },
-          { id: 'w2', partNumber: 'PN-WHL-R', name: 'Rear Motor Wheel Hub', description: 'Integrated Drive Rim', revision: 'A.3', quantity: 1, lifecycle: 'Released' }
-        ]
-      },
-      {
-        id: 'brake',
-        partNumber: 'ASM-BRK-20',
-        name: 'Brake System Assembly',
-        description: 'Hydraulic Disc Brake',
-        revision: 'B.0',
-        quantity: 2,
-        lifecycle: 'Released',
-        children: [
-          { id: 'b1', partNumber: 'PN-BRK-D', name: 'Stainless Brake Disc 140mm', description: 'Vented Rotor', revision: 'B.0', quantity: 2, lifecycle: 'Released' },
-          { id: 'b2', partNumber: 'PN-BRK-C', name: 'Hydraulic Caliper', description: 'Dual Piston Caliper', revision: 'B.0', quantity: 2, lifecycle: 'Released' },
-          { id: 'b3', partNumber: 'PN-BRK-M', name: 'Caliper Adapter Mount', description: 'CNC Billet Aluminium', revision: 'A.1', quantity: 2, lifecycle: 'Released' }
-        ]
-      }
-    ]
+    lifecycle: part?.lifecycleStage || 'Draft',
+    children: []
   };
 
   const renderTreeNodes = (node: AssemblyTreeNode, depth: number = 0) => {
@@ -371,15 +332,15 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
             </span>
 
             <span className={`badge-status ${part.isCheckedOut ? 'badge-draft' : 'badge-active'}`}>
-              {part.isCheckedOut ? `Checked Out: ${part.checkedOutBy || 'Alex Rivera'}` : 'Vault Available'}
+              {part.isCheckedOut ? `Checked Out: ${part.checkedOutBy || 'Design Engineer'}` : 'Vault Available'}
             </span>
           </div>
 
           <h1 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
-            {part.name || 'Electric Scooter Drivetrain & Frame Assembly'}
+            {part.name || 'CAD Model'}
           </h1>
           <p className={`text-xs ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-            {part.description || 'ISO 9001 Master Mechanical CAD Assembly & Structural Details'}
+            {part.description || 'Master Mechanical CAD Model & Geometry'}
           </p>
         </div>
 
@@ -666,7 +627,7 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
 
             <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'}`}>
               <span className={`block text-[11px] font-medium ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>Owner Lead:</span>
-              <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>Alex Rivera</span>
+              <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{part.createdBy || 'Lead Engineer'}</span>
             </div>
 
             <div className={`p-3 rounded-xl border ${isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'}`}>
@@ -952,12 +913,12 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
               </div>
 
               <div className={`grid grid-cols-3 gap-2 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
-                <div>Part: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{part.partNumber || 'ASM-EV-9000'}</span></div>
-                <div>Rev: <span className="text-amber-500 font-semibold">{part.currentRev || 'A.4'}</span></div>
-                <div>Material: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>Al 7075-T6</span></div>
-                <div>Tolerance: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>ISO 2768-mK</span></div>
-                <div>Author: <span className="text-cyan-500 font-semibold">Alex Rivera</span></div>
-                <div>Sheet: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>1 OF 2</span></div>
+                <div>Part: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{part.partNumber}</span></div>
+                <div>Rev: <span className="text-amber-500 font-semibold">{part.currentRev || 'Rev 00'}</span></div>
+                <div>Material: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>{part.material || 'Standard Alloy'}</span></div>
+                <div>Tolerance: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>ISO 2768-m</span></div>
+                <div>Author: <span className="text-cyan-500 font-semibold">{part.createdBy || 'Lead Engineer'}</span></div>
+                <div>Sheet: <span className={`font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>1 OF 1</span></div>
               </div>
             </div>
           </div>

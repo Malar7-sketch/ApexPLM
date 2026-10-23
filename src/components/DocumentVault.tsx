@@ -362,10 +362,10 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </div>
           <div className="space-y-1 max-w-md">
             <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              No engineering documents uploaded yet
+              No documents uploaded
             </h3>
             <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              No engineering documents uploaded yet. Upload a drawing or engineering document to get started.
+              No documents uploaded. Upload an engineering drawing, 3D model, specification, or test report to get started.
             </p>
           </div>
           <button

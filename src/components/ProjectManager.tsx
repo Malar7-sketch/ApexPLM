@@ -87,22 +87,22 @@ export const calculateProjectDuration = (startStr: string, endStr: string) => {
 
 // 16 Standard PLM Milestones with Exact Weights (Total = 100%)
 const STANDARD_16_PLM_MILESTONES: Omit<ProjectTask, 'id' | 'startDate' | 'endDate'>[] = [
-  { taskNumber: '01', taskName: '01 Requirements Definition', weight: 5, assignedRole: 'pm', owner: 'David Sterling', dependency: 'None', progressPercent: 0, status: 'Not Started', durationDays: 14 },
-  { taskNumber: '02', taskName: '02 3D CAD Modeling', weight: 10, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '01 Requirements Definition', progressPercent: 0, status: 'Not Started', durationDays: 30 },
-  { taskNumber: '03', taskName: '03 2D Drawing', weight: 5, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '02 3D CAD Modeling', progressPercent: 0, status: 'Not Started', durationDays: 14 },
-  { taskNumber: '04', taskName: '04 Engineering Review', weight: 5, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '03 2D Drawing', progressPercent: 0, status: 'Not Started', durationDays: 10 },
-  { taskNumber: '05', taskName: '05 EBOM Creation', weight: 10, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '04 Engineering Review', progressPercent: 0, status: 'Not Started', durationDays: 14 },
-  { taskNumber: '06', taskName: '06 DFMEA', weight: 5, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '05 EBOM Creation', progressPercent: 0, status: 'Not Started', durationDays: 10 },
-  { taskNumber: '07', taskName: '07 Prototype Development', weight: 10, assignedRole: 'mfg', owner: 'Marcus Vance', dependency: '06 DFMEA', progressPercent: 0, status: 'Not Started', durationDays: 20 },
-  { taskNumber: '08', taskName: '08 CAPP / Process Planning', weight: 10, assignedRole: 'mfg', owner: 'Marcus Vance', dependency: '07 Prototype Development', progressPercent: 0, status: 'Not Started', durationDays: 15 },
-  { taskNumber: '09', taskName: '09 MBOM Creation', weight: 10, assignedRole: 'mfg', owner: 'Marcus Vance', dependency: '08 CAPP / Process Planning', progressPercent: 0, status: 'Not Started', durationDays: 12 },
-  { taskNumber: '10', taskName: '10 PFMEA', weight: 5, assignedRole: 'mfg', owner: 'Marcus Vance', dependency: '09 MBOM Creation', progressPercent: 0, status: 'Not Started', durationDays: 10 },
-  { taskNumber: '11', taskName: '11 Manufacturing Review', weight: 5, assignedRole: 'mfg', owner: 'Marcus Vance', dependency: '10 PFMEA', progressPercent: 0, status: 'Not Started', durationDays: 7 },
-  { taskNumber: '12', taskName: '12 Quality Inspection', weight: 5, assignedRole: 'quality', owner: 'Dr. Elena Rostova', dependency: '11 Manufacturing Review', progressPercent: 0, status: 'Not Started', durationDays: 12 },
-  { taskNumber: '13', taskName: '13 Final Engineering Approval', weight: 5, assignedRole: 'design', owner: 'Alex Rivera, PE', dependency: '12 Quality Inspection', progressPercent: 0, status: 'Not Started', durationDays: 5 },
-  { taskNumber: '14', taskName: '14 Product Release', weight: 5, assignedRole: 'pm', owner: 'David Sterling', dependency: '13 Final Engineering Approval', progressPercent: 0, status: 'Not Started', durationDays: 5 },
-  { taskNumber: '15', taskName: '15 Project Documentation', weight: 5, assignedRole: 'pm', owner: 'David Sterling', dependency: '14 Product Release', progressPercent: 0, status: 'Not Started', durationDays: 7 },
-  { taskNumber: '16', taskName: '16 Final Project Review', weight: 5, assignedRole: 'pm', owner: 'David Sterling', dependency: '15 Project Documentation', progressPercent: 0, status: 'Not Started', durationDays: 5 }
+  { taskNumber: '01', taskName: '01 Requirements Definition', weight: 5, assignedRole: 'pm', owner: 'Project Manager', dependency: 'None', progressPercent: 0, status: 'Not Started', durationDays: 14 },
+  { taskNumber: '02', taskName: '02 3D CAD Modeling', weight: 10, assignedRole: 'design', owner: 'Design Engineer', dependency: '01 Requirements Definition', progressPercent: 0, status: 'Not Started', durationDays: 30 },
+  { taskNumber: '03', taskName: '03 2D Drawing', weight: 5, assignedRole: 'design', owner: 'Design Engineer', dependency: '02 3D CAD Modeling', progressPercent: 0, status: 'Not Started', durationDays: 14 },
+  { taskNumber: '04', taskName: '04 Engineering Review', weight: 5, assignedRole: 'design', owner: 'Lead Engineer', dependency: '03 2D Drawing', progressPercent: 0, status: 'Not Started', durationDays: 10 },
+  { taskNumber: '05', taskName: '05 EBOM Creation', weight: 10, assignedRole: 'design', owner: 'Design Engineer', dependency: '04 Engineering Review', progressPercent: 0, status: 'Not Started', durationDays: 14 },
+  { taskNumber: '06', taskName: '06 DFMEA', weight: 5, assignedRole: 'design', owner: 'Design Engineer', dependency: '05 EBOM Creation', progressPercent: 0, status: 'Not Started', durationDays: 10 },
+  { taskNumber: '07', taskName: '07 Prototype Development', weight: 10, assignedRole: 'mfg', owner: 'Manufacturing Engineer', dependency: '06 DFMEA', progressPercent: 0, status: 'Not Started', durationDays: 20 },
+  { taskNumber: '08', taskName: '08 CAPP / Process Planning', weight: 10, assignedRole: 'mfg', owner: 'Manufacturing Engineer', dependency: '07 Prototype Development', progressPercent: 0, status: 'Not Started', durationDays: 15 },
+  { taskNumber: '09', taskName: '09 MBOM Creation', weight: 10, assignedRole: 'mfg', owner: 'Manufacturing Engineer', dependency: '08 CAPP / Process Planning', progressPercent: 0, status: 'Not Started', durationDays: 12 },
+  { taskNumber: '10', taskName: '10 PFMEA', weight: 5, assignedRole: 'mfg', owner: 'Manufacturing Engineer', dependency: '09 MBOM Creation', progressPercent: 0, status: 'Not Started', durationDays: 10 },
+  { taskNumber: '11', taskName: '11 Manufacturing Review', weight: 5, assignedRole: 'mfg', owner: 'Manufacturing Engineer', dependency: '10 PFMEA', progressPercent: 0, status: 'Not Started', durationDays: 7 },
+  { taskNumber: '12', taskName: '12 Quality Inspection', weight: 5, assignedRole: 'quality', owner: 'Quality Engineer', dependency: '11 Manufacturing Review', progressPercent: 0, status: 'Not Started', durationDays: 12 },
+  { taskNumber: '13', taskName: '13 Final Engineering Approval', weight: 5, assignedRole: 'design', owner: 'Chief Engineer', dependency: '12 Quality Inspection', progressPercent: 0, status: 'Not Started', durationDays: 5 },
+  { taskNumber: '14', taskName: '14 Product Release', weight: 5, assignedRole: 'pm', owner: 'Project Manager', dependency: '13 Final Engineering Approval', progressPercent: 0, status: 'Not Started', durationDays: 5 },
+  { taskNumber: '15', taskName: '15 Project Documentation', weight: 5, assignedRole: 'pm', owner: 'Project Manager', dependency: '14 Product Release', progressPercent: 0, status: 'Not Started', durationDays: 7 },
+  { taskNumber: '16', taskName: '16 Final Project Review', weight: 5, assignedRole: 'pm', owner: 'Project Manager', dependency: '15 Project Documentation', progressPercent: 0, status: 'Not Started', durationDays: 5 }
 ];
 
 export const ProjectManager: React.FC<ProjectManagerProps> = ({ 
@@ -667,8 +667,15 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       cumulativeWeight += (m.weight || 5);
       const taskEndMs = startMs + (cumulativeWeight / 100) * totalSpanMs;
 
+      const taskOwner = 
+        m.assignedRole === 'pm' ? (newProject.manager || currentUser?.name || 'Project Manager')
+        : m.assignedRole === 'design' ? (newProject.designEngineer || 'Design Engineer')
+        : m.assignedRole === 'mfg' ? (newProject.mfgEngineer || 'Manufacturing Engineer')
+        : (newProject.qualityEngineer || 'Quality Engineer');
+
       return {
         ...m,
+        owner: taskOwner,
         id: `T-${generatedCode}-${String(idx + 1).padStart(2, '0')}`,
         projectId: generatedCode,
         startDate: new Date(taskStartMs).toISOString().substring(0, 10),
@@ -767,21 +774,16 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       return true;
     }
 
+    if (p.projectName && selectedProject.name && p.projectName.toLowerCase() === selectedProject.name.toLowerCase()) {
+      return true;
+    }
+
     // Direct tag match
     const tagMatch = p.tags && p.tags.some(tag => {
       const t = tag.toLowerCase();
       return t === projCode || t === projId || t.includes(projCode) || t.includes(projId);
     });
-    if (tagMatch) return true;
-
-    // Default associations for core mock projects
-    const isScooterProject = projCode.includes('ev') || projCode.includes('scooter') || projName.includes('scooter');
-    const isScooterPart = p.id === 'PN-1001' || p.id === 'PN-1002' || p.id === 'PN-1003' || p.partNumber === 'PN-3002' || p.partNumber === 'PN-3003' || p.partNumber === 'ASM-EV-9000' || p.partNumber === 'PN-PGR-511' || p.partNumber === 'ASM-CAR-510';
-
-    const isActuatorProject = projCode.includes('robo') || projCode.includes('gbx') || projName.includes('actuator');
-    const isActuatorPart = p.id === 'PN-1002' || p.id === 'PN-1004' || p.id === 'PN-1005' || p.partNumber === 'ASM-CAR-510';
-
-    return (isScooterProject && isScooterPart) || (isActuatorProject && isActuatorPart);
+    return Boolean(tagMatch);
   });
 
   const linkedPartIds = linkedParts.map(p => p.id);
@@ -903,7 +905,34 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {projects.length === 0 ? (
+        <div className={`p-16 rounded-2xl border border-dashed text-center space-y-5 transition-colors ${
+          isDark ? 'bg-[#111B2E]/60 border-slate-700/60' : 'bg-white border-slate-300'
+        }`}>
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shadow-lg shadow-cyan-500/10">
+            <Briefcase className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className={`text-lg font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              No projects yet
+            </h3>
+            <p className="text-xs text-slate-400">
+              There are no PLM projects registered in the system. Create your first project workspace to track milestones, schedule, linked products, and CAD documents.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="btn-primary px-6 py-2.5 text-xs inline-flex items-center space-x-2 font-bold cursor-pointer shadow-lg shadow-cyan-500/25"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Project</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left projects selection list */}
         <div className={`rounded-xl p-4 border shadow-sm space-y-3 lg:col-span-1 h-fit ${
           isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
@@ -1700,6 +1729,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           </div>
         )}
       </div>
+    )}
 
       {/* CREATE NEW PLM PROJECT WORKSPACE MODAL */}
       {isCreateModalOpen && (

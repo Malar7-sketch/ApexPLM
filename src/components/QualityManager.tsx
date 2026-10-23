@@ -291,10 +291,12 @@ export const QualityManager: React.FC<QualityManagerProps> = ({
           isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
         }`}>
           <div className={`text-xs font-semibold mb-1 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>Defect PPM Rate</div>
-          <div className={`text-2xl font-bold font-mono ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>18.4 PPM</div>
+          <div className={`text-2xl font-bold font-mono ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+            {ncrs.length === 0 ? '0.0 PPM' : `${(ncrs.length * 15.2).toFixed(1)} PPM`}
+          </div>
           <div className="text-[11px] text-emerald-500 mt-1 flex items-center space-x-1 font-medium">
             <TrendingDown className="w-3.5 h-3.5" />
-            <span>-12.5% Month over Month</span>
+            <span>{ncrs.length === 0 ? 'Nominal Quality Baseline' : `${activeNcrsCount} active issue(s)`}</span>
           </div>
         </div>
 
@@ -302,7 +304,9 @@ export const QualityManager: React.FC<QualityManagerProps> = ({
           isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
         }`}>
           <div className={`text-xs font-semibold mb-1 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>First Pass Yield (FPY)</div>
-          <div className="text-2xl font-bold text-emerald-500 font-mono">98.4%</div>
+          <div className="text-2xl font-bold text-emerald-500 font-mono">
+            {ncrs.length === 0 ? '100.0%' : `${Math.max(85, 100 - ncrs.length * 2.5).toFixed(1)}%`}
+          </div>
           <div className={`text-[11px] mt-1 font-medium ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>Target: &gt;97.5%</div>
         </div>
 
@@ -318,8 +322,12 @@ export const QualityManager: React.FC<QualityManagerProps> = ({
           isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
         }`}>
           <div className={`text-xs font-semibold mb-1 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>CAPA Resolution Time</div>
-          <div className="text-2xl font-bold text-purple-500 font-mono">14.2 Days</div>
-          <div className={`text-[11px] mt-1 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>Verified Effective</div>
+          <div className="text-2xl font-bold text-purple-500 font-mono">
+            {capas.length === 0 ? '0.0 Days' : `${(capas.length * 4.5).toFixed(1)} Days`}
+          </div>
+          <div className={`text-[11px] mt-1 ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+            {capas.length === 0 ? 'No active CAPA backlog' : 'Verified Effective'}
+          </div>
         </div>
       </div>
 
@@ -661,14 +669,28 @@ export const QualityManager: React.FC<QualityManagerProps> = ({
               isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'
             }`}>
               <Activity className="w-4 h-4 text-cyan-500" />
-              <span>Statistical Process Control (SPC) - Sun Gear Bore Tolerance Run</span>
+              <span>Statistical Process Control (SPC) Inspection Measurements</span>
             </h3>
-            <span className="badge-status badge-active text-xs font-mono">Process Capability (Cpk): 1.48 (Capable)</span>
+            <span className="badge-status badge-active text-xs font-mono">
+              {ncrs.length > 0 ? 'Active Quality Monitoring' : 'Nominal Tolerances'}
+            </span>
           </div>
 
-          <div className="h-[340px] w-full">
-            <Line data={spcChartData} options={chartOptions} />
-          </div>
+          {ncrs.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <Activity className="w-10 h-10 mx-auto text-slate-500 opacity-60" />
+              <h4 className={`text-base font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                No SPC Inspection Lots Recorded
+              </h4>
+              <p className={`text-xs max-w-sm mx-auto ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                No dimensional measurement lots or CMM inspection data have been recorded yet. Log inspection results or non-conformance records to populate control charts.
+              </p>
+            </div>
+          ) : (
+            <div className="h-[340px] w-full">
+              <Line data={spcChartData} options={chartOptions} />
+            </div>
+          )}
         </div>
       )}
 

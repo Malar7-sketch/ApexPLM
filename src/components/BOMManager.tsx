@@ -132,7 +132,7 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
   useEffect(() => {
     if (rootNode?.id) {
       setExpandedNodes((prev) => ({ ...prev, [rootNode.id]: true }));
-      setSelectedRevision(rootNode.revision || activePart?.currentRev || 'Rev B.1');
+      setSelectedRevision(rootNode.revision || activePart?.currentRev || 'Rev 00');
     }
   }, [rootNode?.id, activePart?.currentRev]);
 
@@ -210,7 +210,7 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
         rootNode: { ...targetNode, revision: selectedRevision || targetNode.revision },
         part: targetPart,
         viewMode,
-        authorName: currentUser?.name || 'Alex Rivera, PE'
+        authorName: currentUser?.name || 'Engineering Lead'
       });
 
       const blobUrl = URL.createObjectURL(blob);
@@ -255,7 +255,7 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
         rootNode: { ...targetNode, revision: selectedRevision || targetNode.revision },
         part: targetPart,
         viewMode,
-        authorName: currentUser?.name || 'Alex Rivera, PE'
+        authorName: currentUser?.name || 'Engineering Lead'
       });
 
       const blobUrl = URL.createObjectURL(blob);
@@ -327,14 +327,18 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
   // Empty State if BOM Data is Unavailable
   if (!rootNode) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 shadow-2xl text-center space-y-4 font-sans">
+      <div className={`border rounded-3xl p-12 shadow-2xl text-center space-y-4 font-sans transition-colors ${
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      }`}>
         <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 inline-block">
           <Box className="w-10 h-10" />
         </div>
-        <h2 className="text-xl font-bold text-slate-100">Bill of Materials Structure Unavailable</h2>
-        <p className="text-xs text-slate-400 max-w-md mx-auto font-mono">
-          No BOM hierarchy was found for the selected assembly. Please select a valid assembly item master or check CAD structure links.
-        </p>
+        <div className="space-y-1">
+          <h2 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>No BOM items available</h2>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            No Bill of Materials hierarchy was found. Create a product or add an assembly item in Product Management to build multi-level EBOM and MBOM trees.
+          </p>
+        </div>
       </div>
     );
   }
@@ -862,10 +866,15 @@ export const BOMManagerInternal: React.FC<BOMManagerProps> = ({
               </button>
             </div>
 
-            <div className="space-y-2.5 max-h-80 overflow-y-auto">
-              {(historyModalPart.revisionHistory || [
-                { revId: 'Rev A.0', date: '2026-01-10', author: 'Alex Rivera', changeSummary: 'Initial Concept Draft', status: 'Superseded' },
-                { revId: historyModalPart.currentRev || 'Rev B.1', date: '2026-08-24', author: 'Alex Rivera', changeSummary: 'Official DFM Engineering Release Update', status: 'Released' }
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {(historyModalPart.revisionHistory && historyModalPart.revisionHistory.length > 0 ? historyModalPart.revisionHistory.map(r => ({
+                revId: r.revision || 'Rev 00',
+                date: r.releaseDate || new Date().toISOString().substring(0, 10),
+                author: r.author || historyModalPart.createdBy || 'Lead Engineer',
+                changeSummary: r.changeDescription || 'Engineering Revision',
+                status: r.status || 'Released'
+              })) : [
+                { revId: historyModalPart.currentRev || 'Rev 00', date: new Date().toISOString().substring(0, 10), author: historyModalPart.createdBy || 'Lead Engineer', changeSummary: 'Initial Product Release', status: 'Released' }
               ]).map((rev, idx) => (
                 <div key={idx} className={`p-3 rounded-xl border space-y-1 ${
                   isDark ? 'bg-[#0D1628] border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'

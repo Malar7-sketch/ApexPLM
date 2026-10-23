@@ -55,7 +55,7 @@ export const RevisionCompareModal: React.FC<RevisionCompareModalProps> = ({
   const revA: Revision | undefined = revisions.find(r => r.revId === revAId) || {
     revId: revAId,
     date: '2026-08-01',
-    author: product.productOwner || 'Alex Rivera, PE',
+    author: product.productOwner || product.createdBy || 'Lead Engineer',
     changeSummary: 'Baseline release',
     status: 'Released',
     technicalSpecs: product.technicalSpecs
@@ -64,7 +64,7 @@ export const RevisionCompareModal: React.FC<RevisionCompareModalProps> = ({
   const revB: Revision | undefined = revisions.find(r => r.revId === revBId) || {
     revId: revBId,
     date: new Date().toISOString().split('T')[0],
-    author: product.productOwner || 'Alex Rivera, PE',
+    author: product.productOwner || product.createdBy || 'Lead Engineer',
     changeSummary: 'Current revision',
     status: 'Draft',
     technicalSpecs: product.technicalSpecs
@@ -239,7 +239,7 @@ export const RevisionCompareModal: React.FC<RevisionCompareModalProps> = ({
                   <span className="text-[10px] font-bold uppercase text-cyan-400 block mb-1">Baseline: {revAId}</span>
                   <div className="space-y-1 text-slate-300">
                     <div>Status: <span className="font-semibold text-emerald-400">{revA?.status}</span></div>
-                    <div>Author: <span className="font-semibold">{revA?.author || 'Alex Rivera'}</span></div>
+                    <div>Author: <span className="font-semibold">{revA?.author || product.productOwner || product.createdBy || 'Lead Engineer'}</span></div>
                     <div>Created Date: <span className="font-semibold">{revA?.date}</span></div>
                     <div>Change Summary: <span className="text-slate-400">{revA?.changeSummary || revA?.description || 'N/A'}</span></div>
                   </div>
@@ -249,7 +249,7 @@ export const RevisionCompareModal: React.FC<RevisionCompareModalProps> = ({
                   <span className="text-[10px] font-bold uppercase text-purple-400 block mb-1">Target: {revBId}</span>
                   <div className="space-y-1 text-slate-300">
                     <div>Status: <span className="font-semibold text-amber-400">{revB?.status}</span></div>
-                    <div>Author: <span className="font-semibold">{revB?.author || 'Alex Rivera'}</span></div>
+                    <div>Author: <span className="font-semibold">{revB?.author || product.productOwner || product.createdBy || 'Lead Engineer'}</span></div>
                     <div>Created Date: <span className="font-semibold">{revB?.date}</span></div>
                     <div>Change Summary: <span className="text-slate-400">{revB?.changeSummary || revB?.description || 'N/A'}</span></div>
                   </div>

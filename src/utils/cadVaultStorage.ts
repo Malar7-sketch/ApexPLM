@@ -261,7 +261,7 @@ function generateStepContent(partNumber: string, revision: string, partName: str
   return `ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('STEP AP203 - 3D Mechanical CAD Model Geometry', 'ISO 10303-21 B-Rep Standard'), '2;1');
-FILE_NAME('${partNumber}_Rev_${revision}.step', '${timestamp}', ('Alex Rivera, PE'), ('ApexPLM Engineering'), 'SolidWorks 2025 SP3.0', 'ApexPLM CAD Translator v4.2', 'Approved');
+FILE_NAME('${partNumber}_Rev_${revision}.step', '${timestamp}', ('Design Engineer'), ('ApexPLM Engineering'), 'SolidWorks 2025 SP3.0', 'ApexPLM CAD Translator v4.2', 'Approved');
 FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));
 ENDSEC;
 DATA;
@@ -305,7 +305,7 @@ PART NUMBER: ${partNumber}
 REVISION: ${revision}
 FORMAT: ${format}
 CREATION DATE: ${new Date().toISOString()}
-AUTHOR: Alex Rivera, PE
+AUTHOR: Design Engineer
 ORGANIZATION: ApexPLM Product Engineering
 GEOMETRY STATUS: FULL BREP SOLID MODEL VALIDATED
 `;
@@ -435,7 +435,7 @@ export async function downloadCadVaultFile(options: DownloadOptions): Promise<Do
   const cleanRev = sanitizeRevName(targetRevStr);
 
   const revObj = part.revisionHistory?.find(r => r.revId === targetRevStr || r.revId === revision);
-  const authorName = revObj?.author || 'Alex Rivera, PE';
+  const authorName = revObj?.author || part.createdBy || 'Lead Engineer';
 
   let filename = '';
   let mimeType = 'application/octet-stream';

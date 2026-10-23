@@ -93,31 +93,31 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
   const [productDescription, setProductDescription] = useState('High-performance engineered assembly designed for mission-critical reliability.');
   const [productCategory, setProductCategory] = useState<PartCategory>('CNC Machined');
   const [productType, setProductType] = useState<PartType>('Assembly');
-  const [productFamily, setProductFamily] = useState('Electric Powertrain');
-  const [customerName, setCustomerName] = useState('Apex Mobility Global');
-  const [projectId, setProjectId] = useState(projects[0]?.id || 'PRJ-01');
-  const [department, setDepartment] = useState('Mechanical Design');
-  const [productOwner, setProductOwner] = useState(currentUser.name || 'Alex Rivera, PE');
-  const [designEngineer, setDesignEngineer] = useState(currentUser.name || 'Alex Rivera, PE');
-  const [manufacturingEngineer, setManufacturingEngineer] = useState('Marcus Vance');
-  const [qualityEngineer, setQualityEngineer] = useState('Dr. Elena Rostova');
+  const [productFamily, setProductFamily] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [projectId, setProjectId] = useState(projects[0]?.id || '');
+  const [department, setDepartment] = useState('Mechanical Engineering');
+  const [productOwner, setProductOwner] = useState(currentUser.name || '');
+  const [designEngineer, setDesignEngineer] = useState(currentUser.name || '');
+  const [manufacturingEngineer, setManufacturingEngineer] = useState('');
+  const [qualityEngineer, setQualityEngineer] = useState('');
   const [productImage, setProductImage] = useState<string>('');
-  const [tags, setTags] = useState('EV Mobility, Critical Assembly, High Precision');
+  const [tags, setTags] = useState('');
 
-  // SECTION B: INITIAL REVISION (Rev 0.0 Draft)
-  const [revisionNumber, setRevisionNumber] = useState('Rev 0.0');
-  const [revisionDescription, setRevisionDescription] = useState('Initial baseline engineering release & concept architecture');
+  // SECTION B: INITIAL REVISION (Rev 00 Draft)
+  const [revisionNumber, setRevisionNumber] = useState('Rev 00');
+  const [revisionDescription, setRevisionDescription] = useState('Initial baseline release');
   const [revisionStatus] = useState<'Draft'>('Draft');
   const [revisionDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [createdBy] = useState(currentUser.name || 'Alex Rivera, PE');
-  const [changeReason, setChangeReason] = useState('Initial product release & specifications baselining');
+  const [createdBy] = useState(currentUser.name || 'Lead Engineer');
+  const [changeReason, setChangeReason] = useState('Initial product release');
   const [lifecycleStage, setLifecycleStage] = useState<LifecycleStage>('design');
   const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [revisionNotes, setRevisionNotes] = useState('Rev 0.0 established as editable Draft. Physical geometry and drawings staged.');
+  const [revisionNotes, setRevisionNotes] = useState('');
 
   // SECTION C: TECHNICAL INFORMATION
-  const [material, setMaterial] = useState('Aluminum 7075-T6 Anodized');
-  const [manufacturingProcess, setManufacturingProcess] = useState('5-Axis CNC Milling & Wire EDM');
+  const [material, setMaterial] = useState('');
+  const [manufacturingProcess, setManufacturingProcess] = useState('');
   const [lengthMm, setLengthMm] = useState('450');
   const [widthMm, setWidthMm] = useState('680');
   const [heightMm, setHeightMm] = useState('1250');
@@ -282,7 +282,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
     try {
       const permanentProductId = nextAutoPartId;
       const today = new Date().toISOString().split('T')[0];
-      const authorName = currentUser.name || 'Alex Rivera, PE';
+      const authorName = currentUser.name || 'Lead Engineer';
       const selectedProject = projects.find(p => p.id === projectId);
 
       // 1. Technical Specs Object

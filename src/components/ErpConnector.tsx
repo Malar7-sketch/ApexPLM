@@ -22,6 +22,22 @@ export const ErpConnector: React.FC<ErpConnectorProps> = ({ parts }) => {
   const [format, setFormat] = useState<'json' | 'xml' | 'csv'>('json');
   const [syncing, setSyncing] = useState(false);
 
+  if (!parts || parts.length === 0) {
+    return (
+      <div className={`rounded-2xl p-12 text-center border shadow-sm space-y-4 font-sans ${
+        isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+      }`}>
+        <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl text-indigo-400 inline-block">
+          <Database className="w-10 h-10" />
+        </div>
+        <h2 className={`text-xl font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>No Parts for ERP Synchronization</h2>
+        <p className={`text-xs max-w-md mx-auto font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+          The part master catalog is currently empty. Create or import mechanical products to generate ERP integration payloads.
+        </p>
+      </div>
+    );
+  }
+
   const samplePart = parts[0];
 
   const jsonPayload = JSON.stringify({

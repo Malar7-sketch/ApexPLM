@@ -76,7 +76,7 @@ export const ProductionReportModal: React.FC<ProductionReportModalProps> = ({
 
   if (!isOpen) return null;
 
-  const author = currentUser?.name || 'Alex Rivera, PE';
+  const author = currentUser?.name || 'Manufacturing Engineer';
 
   const dailyData = getDailyProductionData(selectedDate);
   const weeklyData = getWeeklyProductionData(weekRange);

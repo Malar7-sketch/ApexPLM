@@ -27,6 +27,7 @@ interface ReportsManagerProps {
   ncrs: QualityNCR[];
   suppliers: Supplier[];
   projects: Project[];
+  currentUser?: { name?: string } | null;
 }
 
 export const ReportsManager: React.FC<ReportsManagerProps> = ({
@@ -34,7 +35,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({
   ecns,
   ncrs,
   suppliers,
-  projects
+  projects,
+  currentUser
 }) => {
   const { isDark } = useTheme();
   const [reportType, setReportType] = useState<'bom' | 'ecn' | 'quality' | 'supplier' | 'project'>('bom');
@@ -322,7 +324,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({
               Generated: {reportDate}
             </div>
             <div className={isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}>
-              Prepared By: Alex Rivera, PE
+              Prepared By: {currentUser?.name || 'Engineering Lead'}
             </div>
             <div className={isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}>
               Classification: Confidential Internal

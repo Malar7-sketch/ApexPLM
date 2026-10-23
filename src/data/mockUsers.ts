@@ -20,6 +20,7 @@ export interface UserAccount {
   permissions: string[];
   joiningDate?: string;
   phone?: string;
+  username?: string;
 }
 
 export const MOCK_USERS: UserAccount[] = [

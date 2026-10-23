@@ -20,7 +20,7 @@ export function generateExecutiveReportPdf(options: ExecutiveReportOptions): { b
     ncrs,
     suppliers,
     projects,
-    generatedBy = 'Alex Rivera, PE',
+    generatedBy = 'Engineering Lead',
     reportDate = new Date().toISOString().split('T')[0]
   } = options;
 

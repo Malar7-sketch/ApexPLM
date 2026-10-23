@@ -219,7 +219,7 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const authorName = currentUser.name || 'Alex Rivera, PE';
+      const authorName = currentUser.name || 'Lead Design Engineer';
 
       // 1. Technical Specs for this Revision
       const newSpecs = {
@@ -565,7 +565,7 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
                     </label>
                     <input 
                       type="text" 
-                      value={currentUser.name || 'Alex Rivera, PE'} 
+                      value={currentUser.name || 'Lead Design Engineer'} 
                       disabled
                       className={`w-full p-2.5 rounded-lg border text-xs font-semibold ${
                         isDark ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-slate-200 border-slate-300 text-slate-700'

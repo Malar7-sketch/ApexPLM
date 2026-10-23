@@ -456,11 +456,11 @@ export const CreateEcrModal: React.FC<CreateEcrModalProps> = ({
                   </div>
                   <div>
                     <span className={`text-[10px] uppercase block font-semibold ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>PRODUCT OWNER:</span>
-                    <span className={`font-semibold ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>Alex Rivera, PE</span>
+                    <span className={`font-semibold ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>{selectedPart.productOwner || selectedPart.createdBy || 'Lead Engineer'}</span>
                   </div>
                   <div>
                     <span className={`text-[10px] uppercase block font-semibold ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>DEPARTMENT:</span>
-                    <span className={`font-semibold ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>R&D Mechanical Design</span>
+                    <span className={`font-semibold ${isDark ? 'text-[#CBD5E1]' : 'text-[#475569]'}`}>{selectedPart.department || 'Mechanical Design'}</span>
                   </div>
                 </div>
               )}

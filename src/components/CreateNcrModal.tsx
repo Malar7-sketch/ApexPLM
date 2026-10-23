@@ -30,7 +30,7 @@ interface CreateNcrModalProps {
 }
 
 export const getNextNcrNumber = (existingNcrs: QualityNCR[]): string => {
-  let highestNum = 88902;
+  let highestNum = 0;
   existingNcrs.forEach((ncr) => {
     const match = ncr.ncrNumber?.match(/NCR-(\d+)/i);
     if (match && match[1]) {
@@ -38,7 +38,7 @@ export const getNextNcrNumber = (existingNcrs: QualityNCR[]): string => {
       if (num > highestNum) highestNum = num;
     }
   });
-  return `NCR-${highestNum + 1}`;
+  return `NCR-${String(highestNum + 1).padStart(4, '0')}`;
 };
 
 export const CreateNcrModal: React.FC<CreateNcrModalProps> = ({
@@ -61,23 +61,23 @@ export const CreateNcrModal: React.FC<CreateNcrModalProps> = ({
   const [severity, setSeverity] = useState<NcrSeverity>('Major');
   const [status, setStatus] = useState<NcrStatus>('Open');
   const [dateDetected, setDateDetected] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [detectedBy, setDetectedBy] = useState<string>(currentUser?.name || 'Inspector J. Miller (CMM Lab)');
-  const [department, setDepartment] = useState<string>('CNC Machining Shop');
-  const [targetPartNumber, setTargetPartNumber] = useState<string>('PN-1004');
-  const [productAssembly, setProductAssembly] = useState<string>('ASM-GBX-5000 Planetary Gearbox');
-  const [workOrder, setWorkOrder] = useState<string>('WO-2026-0884');
-  const [machineEquipment, setMachineEquipment] = useState<string>('Mazak INTEGREX e-420H CNC #01');
+  const [detectedBy, setDetectedBy] = useState<string>(currentUser?.name || '');
+  const [department, setDepartment] = useState<string>('Quality Assurance');
+  const [targetPartNumber, setTargetPartNumber] = useState<string>(Object.values(partsMap)[0]?.partNumber || '');
+  const [productAssembly, setProductAssembly] = useState<string>('');
+  const [workOrder, setWorkOrder] = useState<string>('');
+  const [machineEquipment, setMachineEquipment] = useState<string>('');
 
   // Non-conformance Details
   const [nonConformanceDescription, setNonConformanceDescription] = useState<string>('');
-  const [specificationRequirement, setSpecificationRequirement] = useState<string>('Concentricity <= 12.0 µm, Ra < 1.6 µm');
+  const [specificationRequirement, setSpecificationRequirement] = useState<string>('');
   const [actualCondition, setActualCondition] = useState<string>('');
   const [expectedCondition, setExpectedCondition] = useState<string>('');
   const [quantityAffected, setQuantityAffected] = useState<number>(1);
-  const [defectLocation, setDefectLocation] = useState<string>('Op 30 Bearing Seat Bore');
+  const [defectLocation, setDefectLocation] = useState<string>('');
 
   // Root Cause
-  const [rootCauseCategory, setRootCauseCategory] = useState<string>('Tooling Wear / Thermal Drift');
+  const [rootCauseCategory, setRootCauseCategory] = useState<string>('Tooling / Process');
   const [rootCauseDescription, setRootCauseDescription] = useState<string>('');
   const [containmentAction, setContainmentAction] = useState<string>('');
   const [correctiveAction, setCorrectiveAction] = useState<string>('');

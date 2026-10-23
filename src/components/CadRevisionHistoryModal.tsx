@@ -64,109 +64,50 @@ export const CadRevisionHistoryModal: React.FC<CadRevisionHistoryModalProps> = (
   const { isDark } = useTheme();
   const [selectedRevDetail, setSelectedRevDetail] = useState<string | null>(null);
 
-  // Comprehensive revisions data for ASM-EV-9000
-  const revisions: DetailedRevisionRecord[] = [
-    {
-      revId: 'A.4',
-      date: '2026-08-22',
-      author: 'Alex Rivera',
-      approver: 'Marcus Vance, VP Eng (Pending)',
-      status: 'Draft',
-      ecnNumber: 'ECO-2026-0042',
-      changeSummary: 'Planetary gear radius enlarged (16mm -> 18mm) for 750W high-torque motor',
-      detailedNotes: [
-        'Gearbox ring & planet gear pitch radius enlarged to support 750W peak torque (+12.5% tooth contact engagement)',
-        'Rear dropout clearance expanded by +2.5mm for wider high-traction 10" tubeless tire fitment',
-        'Integrated internal conduit channels inside downtube for brushless motor phase lines and sensor bus'
-      ],
-      dimensionsMm: [450, 680, 1250],
-      weightKg: 28.40,
-      volumeCm3: 8400,
-      surfaceAreaCm2: 12400,
-      estimatedCost: 1850.00,
-      cadPlatform: 'SolidWorks 2025 SP3',
-      cadFileName: 'ASM-EV-9000.SLDASM',
-      material: 'Aluminium 7075-T6 & Carbon Composite',
-      toleranceClass: 'ISO 2768-f (Fine Precision)',
-      maxStressMpa: 310,
-      criticalFeatures: ['18T Case-Hardened Gears', '+2.5mm Dropout Clearance', 'Internal Conduit Channeling']
-    },
-    {
-      revId: 'A.3',
-      date: '2026-08-20',
-      author: 'Alex Rivera',
-      approver: 'Marcus Vance, VP Engineering',
-      status: 'Released',
-      ecnNumber: 'ECO-2026-0036',
-      changeSummary: 'Material upgrade to Aerospace 7075-T6 & hydraulic caliper relocation',
-      detailedNotes: [
-        'Frame material upgraded to Aerospace Grade Aluminium 7075-T6 (+35% yield strength increase over 6061)',
-        'Relocated dual-piston hydraulic brake caliper for superior cooling air vortex and thermal dissipation',
-        'Validated under ISO 4210 dynamic drop testing standards at 1500N continuous shock cycle'
-      ],
-      dimensionsMm: [450, 680, 1250],
-      weightKg: 28.10,
-      volumeCm3: 8320,
-      surfaceAreaCm2: 12250,
-      estimatedCost: 1810.00,
-      cadPlatform: 'SolidWorks 2025 SP2',
-      cadFileName: 'ASM-EV-9000-A3.SLDASM',
-      material: 'Aluminium 7075-T6',
-      toleranceClass: 'ISO 2768-m (Medium)',
-      maxStressMpa: 285,
-      criticalFeatures: ['7075-T6 Forged Links', 'Relocated Dual Caliper Mounts', 'Tested to ISO 4210']
-    },
-    {
-      revId: 'A.2',
-      date: '2026-08-18',
-      author: 'Alex Rivera',
-      approver: 'Marcus Vance, VP Engineering',
-      status: 'Superseded',
-      ecnNumber: 'ECO-2026-0028',
-      changeSummary: 'DFM optimization pass & CNC extrusion pocketing',
-      detailedNotes: [
-        'Added structural gussets at steering head tube to withstand braking shock load',
-        'Wall thickness adjusted from 3.2mm to 2.8mm with ribbed stiffeners for mass reduction',
-        'Machined rear fork dropouts to accommodate standard 140mm SUS410 brake rotors'
-      ],
-      dimensionsMm: [445, 675, 1240],
-      weightKg: 27.80,
-      volumeCm3: 8250,
-      surfaceAreaCm2: 12100,
-      estimatedCost: 1720.00,
-      cadPlatform: 'SolidWorks 2024 SP2',
-      cadFileName: 'ASM-EV-9000-A2.SLDASM',
-      material: 'Aluminium 6061-T6',
-      toleranceClass: 'ISO 2768-m (Medium)',
-      maxStressMpa: 210,
-      criticalFeatures: ['Extruded Stiffening Ribs', 'Gusseted Steering Neck', 'Rear Dropout Machining']
-    },
-    {
-      revId: 'A.1',
-      date: '2026-08-01',
-      author: 'Alex Rivera',
-      approver: 'Marcus Vance, VP Engineering',
-      status: 'Superseded',
-      ecnNumber: 'ECO-2026-0012',
-      changeSummary: 'Initial conceptual architecture & structural frame sizing',
-      detailedNotes: [
-        'Initial frame layout using 6061 aluminium alloy round tubular chassis',
-        'Basic 500W planetary motor mount provision with external cable brackets',
-        'Preliminary single disc brake interface for concept prototype build'
-      ],
-      dimensionsMm: [440, 670, 1230],
-      weightKg: 27.20,
-      volumeCm3: 8100,
-      surfaceAreaCm2: 11800,
-      estimatedCost: 1650.00,
-      cadPlatform: 'SolidWorks 2024 SP1',
-      cadFileName: 'ASM-EV-9000-A1.SLDASM',
-      material: 'Aluminium 6061-T6',
-      toleranceClass: 'ISO 2768-c (Coarse)',
-      maxStressMpa: 185,
-      criticalFeatures: ['Concept Tubular Truss', '500W Hub Pocket', 'External Cable Routing']
-    }
-  ];
+  // Revisions data dynamically derived from active part
+  const revisions: DetailedRevisionRecord[] = (part.revisionHistory && part.revisionHistory.length > 0)
+    ? part.revisionHistory.map((rev, index) => ({
+        revId: rev.revision || `Rev ${index + 1}`,
+        date: rev.releaseDate || new Date().toISOString().substring(0, 10),
+        author: rev.author || 'Lead Engineer',
+        approver: rev.approver || 'Engineering Lead',
+        status: (rev.status as any) || (index === 0 ? 'Released' : 'Superseded'),
+        ecnNumber: rev.changeNoticeId || `REV-${index + 1}`,
+        changeSummary: rev.changeDescription || rev.comments || 'Engineering revision release',
+        detailedNotes: [rev.changeDescription || 'CAD model geometry updated.'],
+        dimensionsMm: [part.envelopeDimensions?.x || 100, part.envelopeDimensions?.y || 100, part.envelopeDimensions?.z || 100],
+        weightKg: part.weightGrams ? part.weightGrams / 1000 : 1.0,
+        volumeCm3: 100,
+        surfaceAreaCm2: 250,
+        estimatedCost: part.targetCost || 0,
+        cadPlatform: 'ApexPLM CAD Engine',
+        cadFileName: `${part.partNumber}_${rev.revision}.step`,
+        material: part.material || 'Standard Alloy',
+        toleranceClass: 'ISO 2768-m',
+        maxStressMpa: 250,
+        criticalFeatures: ['CAD Model Synchronized']
+      }))
+    : [{
+        revId: part.currentRev || 'Rev 00',
+        date: new Date().toISOString().substring(0, 10),
+        author: part.createdBy || 'Lead Engineer',
+        approver: 'Engineering Lead',
+        status: 'Released',
+        ecnNumber: `REV-${part.currentRev || '00'}`,
+        changeSummary: 'Initial Product Release',
+        detailedNotes: ['Initial geometry and item master registration.'],
+        dimensionsMm: [part.envelopeDimensions?.x || 100, part.envelopeDimensions?.y || 100, part.envelopeDimensions?.z || 100],
+        weightKg: part.weightGrams ? part.weightGrams / 1000 : 1.0,
+        volumeCm3: 100,
+        surfaceAreaCm2: 250,
+        estimatedCost: part.targetCost || 0,
+        cadPlatform: 'ApexPLM CAD Engine',
+        cadFileName: `${part.partNumber}_${part.currentRev || '00'}.step`,
+        material: part.material || 'Standard Alloy',
+        toleranceClass: 'ISO 2768-m',
+        maxStressMpa: 250,
+        criticalFeatures: ['Active Part Geometry']
+      }];
 
   const handleExportAuditTrail = () => {
     const headers = ['Revision', 'Release Date', 'Author', 'Approver', 'ECO Number', 'Status', 'Change Summary', 'Weight (kg)', 'CAD Platform', 'Material'];

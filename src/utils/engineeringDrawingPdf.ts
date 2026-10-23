@@ -139,12 +139,12 @@ export async function generateEngineeringDrawingPdf(options: DrawingPdfOptions):
     revision: userRev,
     bomTree,
     projectionAngle = 'third',
-    authorName = 'Alex Rivera, PE',
-    checkerName = 'Marcus Vance',
-    approverName = 'Dr. Elena Rostova'
+    authorName = part.createdBy || 'Lead Design Engineer',
+    checkerName = 'Engineering Reviewer',
+    approverName = 'Chief Approver'
   } = options;
 
-  const targetRev = userRev || part.currentRev || 'A.4';
+  const targetRev = userRev || part.currentRev || 'Rev 00';
   const cleanRev = sanitizeRevName(targetRev);
   const drawingNo = getDrawingNumber(part.partNumber);
   const dateStr = new Date().toISOString().split('T')[0];
@@ -427,10 +427,17 @@ export async function generateEngineeringDrawingPdf(options: DrawingPdfOptions):
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.5);
-    const revHist = part.revisionHistory || [
-      { revId: 'A.0', date: '2026-01-10', author: 'Alex Rivera', changeSummary: 'Initial Concept Draft', status: 'Superseded' },
-      { revId: targetRev, date: dateStr, author: authorName, changeSummary: 'Official DFM Engineering Release Update', status: 'Released' }
-    ];
+    const revHist = (part.revisionHistory && part.revisionHistory.length > 0)
+      ? part.revisionHistory.map(r => ({
+          revId: r.revision || 'Rev 00',
+          date: r.releaseDate || dateStr,
+          author: r.author || authorName,
+          changeSummary: r.changeDescription || 'Engineering Revision',
+          status: r.status || 'Released'
+        }))
+      : [
+          { revId: targetRev, date: dateStr, author: authorName, changeSummary: 'Initial Product Release', status: 'Released' }
+        ];
 
     revHist.slice(0, 3).forEach((r, idx) => {
       const ry = revY + 10.2 + idx * 6;

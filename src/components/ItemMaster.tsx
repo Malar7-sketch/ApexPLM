@@ -112,6 +112,21 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({
       </div>
 
       {/* Main Grid: Parts Catalog + Detailed Inspector Side Drawer */}
+      {parts.length === 0 ? (
+        <div className={`p-12 text-center rounded-[14px] border shadow-sm space-y-4 ${
+          isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+        }`}>
+          <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-cyan-400 inline-block">
+            <Box className="w-10 h-10" />
+          </div>
+          <h3 className={`text-base font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+            No Part Master Records Found
+          </h3>
+          <p className={`text-xs max-w-md mx-auto ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+            The engineering item master catalog is currently empty. Create or import products in the Product Management workspace to register CAD components here.
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Parts List Catalog Table (8 Cols) */}
         <div className="lg:col-span-8 plm-table-container">
@@ -129,7 +144,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({
             </thead>
             <tbody>
               {filteredParts.map((part) => {
-                const isSelected = part.id === selectedPart.id;
+                const isSelected = selectedPart && part.id === selectedPart.id;
 
                 return (
                   <tr
@@ -280,6 +295,7 @@ export const ItemMaster: React.FC<ItemMasterProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

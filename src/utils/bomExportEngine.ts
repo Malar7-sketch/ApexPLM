@@ -227,12 +227,12 @@ export async function generateBomExcel(options: BomExportOptions): Promise<{ blo
     rootNode,
     part,
     viewMode = 'ebom',
-    authorName = 'Alex Rivera, PE'
+    authorName = 'Engineering Lead'
   } = options;
 
-  const partNo = rootNode.partNumber || part?.partNumber || 'ASM-GBX-5000';
+  const partNo = rootNode.partNumber || part?.partNumber || 'PART-001';
   const partName = rootNode.name || part?.name || 'Assembly Bill of Materials';
-  const rev = rootNode.revision || part?.currentRev || 'Rev B.1';
+  const rev = rootNode.revision || part?.currentRev || 'Rev 00';
   const cleanRev = cleanRevString(rev);
   const dateStr = new Date().toISOString().split('T')[0];
   const filename = `${partNo}_BOM_Rev_${cleanRev}.xlsx`;
@@ -259,9 +259,9 @@ export async function generateBomExcel(options: BomExportOptions): Promise<{ blo
     'PREPARED BY:', authorName
   ]);
   wsData.push([
-    'BASE MATERIAL:', rootNode.material || part?.material || 'Aluminium 7075-T6', '', '',
-    'STANDARD / CODE:', 'ASME Y14.5 / ISO 2768-mK', '',
-    'STATUS:', 'Released / Approved'
+    'BASE MATERIAL:', rootNode.material || part?.material || 'Commercial Specification', '', '',
+    'STANDARD / CODE:', 'ISO / Enterprise Standard', '',
+    'STATUS:', rootNode.status || part?.lifecycle || 'Active'
   ]);
   wsData.push([]); // Empty Row
 
@@ -401,12 +401,12 @@ export async function generateBomPdf(options: BomExportOptions): Promise<{ blob:
     rootNode,
     part,
     viewMode = 'ebom',
-    authorName = 'Alex Rivera, PE'
+    authorName = 'Engineering Lead'
   } = options;
 
-  const partNo = rootNode.partNumber || part?.partNumber || 'ASM-GBX-5000';
+  const partNo = rootNode.partNumber || part?.partNumber || 'PART-001';
   const partName = rootNode.name || part?.name || 'Assembly Bill of Materials';
-  const rev = rootNode.revision || part?.currentRev || 'Rev B.1';
+  const rev = rootNode.revision || part?.currentRev || 'Rev 00';
   const cleanRev = cleanRevString(rev);
   const dateStr = new Date().toISOString().split('T')[0];
   const filename = `${partNo}_BOM_Rev_${cleanRev}.pdf`;

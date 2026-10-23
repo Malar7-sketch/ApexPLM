@@ -341,7 +341,13 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
               </div>
 
               <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-                {ecrs.map((ecr) => {
+                {ecrs.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 space-y-2">
+                    <GitPullRequest className="w-8 h-8 mx-auto opacity-50" />
+                    <p className="text-xs">No change requests logged.</p>
+                  </div>
+                ) : (
+                  ecrs.map((ecr) => {
                   const targetPart = partsMap[ecr.targetProductId || ecr.impactedPartIds?.[0] || ''];
                   const isSelected = ecr.id === selectedEcr?.id;
                   const currentR = ecr.currentRevision || targetPart?.currentRev || 'B.0';
@@ -493,7 +499,7 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             </div>
 
@@ -792,7 +798,7 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
                       <div className="flex items-center space-x-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         <span>
-                          <b>ECR Log:</b> {selectedEcr.id} by <b>{selectedEcr.requester || selectedEcr.createdBy || 'Alex Rivera, PE'}</b>
+                          <b>ECR Log:</b> {selectedEcr.id} by <b>{selectedEcr.requester || selectedEcr.createdBy || 'Change Author'}</b>
                         </span>
                       </div>
                       <span className={`text-[11px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>
@@ -808,8 +814,23 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
                 isDark ? 'bg-[#111B2E] border-[#243149] text-[#94A3B8]' : 'bg-white border-[#E2E8F0] text-[#64748B]'
               }`}>
                 <GitPullRequest className="w-10 h-10 text-secondary mx-auto opacity-60" />
-                <h3 className={`text-base font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>No ECR Selected</h3>
-                <p className="text-xs">Select an ECR from the left sidebar or click "+ New ECR" to create a new change request.</p>
+                <h3 className={`text-base font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                  {ecrs.length === 0 ? 'No Engineering Change Requests (ECR) Yet' : 'No ECR Selected'}
+                </h3>
+                <p className="text-xs max-w-sm mx-auto">
+                  {ecrs.length === 0 
+                    ? 'Submit a change request to propose design modifications, revision bumps, or cost/weight optimizations.' 
+                    : 'Select an ECR from the left sidebar or click "+ New ECR" to create a new change request.'}
+                </p>
+                {ecrs.length === 0 && (
+                  <button
+                    onClick={() => setShowNewEcrModal(true)}
+                    className="btn-primary btn-sm mx-auto flex items-center space-x-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create First ECR</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -820,7 +841,20 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
       {/* ========================================================================= */}
       {/* 2. ECN TAB VIEW (EXISTING ECN WORKFLOW PIPELINE)                          */}
       {/* ========================================================================= */}
-      {activeTab === 'ecn' && selectedEcn && (
+      {activeTab === 'ecn' && (
+        ecns.length === 0 ? (
+          <div className={`p-12 text-center rounded-[18px] border shadow-sm space-y-3 transition-colors ${
+            isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+          }`}>
+            <Layers className="w-10 h-10 text-amber-500 mx-auto opacity-70" />
+            <h3 className={`text-base font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+              No Engineering Change Notices (ECN) Available
+            </h3>
+            <p className={`text-xs max-w-md mx-auto ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+              Change notices are officially released when an Engineering Change Request (ECR) has completed cross-functional review and electronic signoffs.
+            </p>
+          </div>
+        ) : selectedEcn ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* ECN Master List (4 cols) */}
           <div className={`lg:col-span-4 rounded-[18px] p-5 border shadow-sm space-y-3 transition-colors ${
@@ -1005,6 +1039,7 @@ export const ChangeManagement: React.FC<ChangeManagementProps> = ({
             </div>
           </div>
         </div>
+        ) : null
       )}
 
       {/* CREATE ECR MODAL COMPONENT */}

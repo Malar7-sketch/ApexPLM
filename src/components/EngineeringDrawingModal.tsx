@@ -96,9 +96,9 @@ export const EngineeringDrawingModal: React.FC<EngineeringDrawingModalProps> = (
         revision: currentRev,
         bomTree,
         projectionAngle,
-        authorName: 'Alex Rivera, PE',
-        checkerName: 'Marcus Vance',
-        approverName: 'Dr. Elena Rostova'
+        authorName: part.createdBy || 'Lead Design Engineer',
+        checkerName: 'Engineering Reviewer',
+        approverName: 'Chief Approver'
       });
 
       const blobUrl = URL.createObjectURL(blob);
@@ -337,9 +337,14 @@ export const EngineeringDrawingModal: React.FC<EngineeringDrawingModalProps> = (
                     <span className="col-span-2">DATE</span>
                     <span className="col-span-2">APPROVED</span>
                   </div>
-                  {(part.revisionHistory || [
-                    { revId: 'A.0', date: '2026-01-10', author: 'Alex Rivera', changeSummary: 'Initial Concept Draft', status: 'Superseded' },
-                    { revId: currentRev, date: dateStr, author: 'Alex Rivera', changeSummary: 'Official DFM Engineering Release Update', status: 'Released' }
+                  {(part.revisionHistory && part.revisionHistory.length > 0 ? part.revisionHistory.map(r => ({
+                    revId: r.revision || 'Rev 00',
+                    date: r.releaseDate || dateStr,
+                    author: r.author || 'Lead Engineer',
+                    changeSummary: r.changeDescription || 'Engineering Revision',
+                    status: r.status || 'Released'
+                  })) : [
+                    { revId: currentRev || 'Rev 00', date: dateStr, author: part.createdBy || 'Lead Engineer', changeSummary: 'Initial Product Release', status: 'Released' }
                   ]).slice(0, 2).map((r, i) => (
                     <div key={i} className="grid grid-cols-12 text-[8px] p-1 border-t border-slate-200 text-center">
                       <span className="col-span-2 font-bold">{r.revId}</span>
@@ -639,9 +644,9 @@ export const EngineeringDrawingModal: React.FC<EngineeringDrawingModalProps> = (
                   <div className="h-[54px] grid grid-cols-12 items-center text-[7.5px]">
                     {/* Drawn / Approvals */}
                     <div className="col-span-4 p-1.5 border-r border-slate-900 space-y-0.5">
-                      <div>DRAWN: <b>Alex Rivera, PE</b></div>
-                      <div>CHECKED: <b>Marcus Vance</b></div>
-                      <div>APPROVED: <b>Dr. Elena Rostova</b></div>
+                      <div>DRAWN: <b>{part.createdBy || 'Design Engineer'}</b></div>
+                      <div>CHECKED: <b>Engineering Reviewer</b></div>
+                      <div>APPROVED: <b>Chief Approver</b></div>
                     </div>
 
                     {/* Dedicated Projection Symbol Box */}

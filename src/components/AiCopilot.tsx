@@ -25,7 +25,7 @@ export const AiCopilot: React.FC<AiCopilotProps> = ({ parts }) => {
   const [messages, setMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string; data?: any }>>([
     {
       sender: 'ai',
-      text: 'Hello Alex! I am ApexAI, your Enterprise PLM Engineering Assistant. I can analyze CAD geometry, predict ECN impact, detect duplicate part numbers, and suggest DFM material optimizations.'
+      text: 'Hello! I am ApexAI, your Enterprise PLM Engineering Assistant. I can analyze CAD geometry, predict ECN impact, detect duplicate part numbers, and suggest DFM material optimizations.'
     }
   ]);
 
@@ -100,7 +100,7 @@ export const AiCopilot: React.FC<AiCopilotProps> = ({ parts }) => {
                   msg.sender === 'user' ? 'text-white/80' : isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'
                 }`}>
                   {msg.sender === 'ai' ? <Bot className="w-3.5 h-3.5 text-cyan-500" /> : null}
-                  <span>{msg.sender === 'ai' ? 'ApexAI Copilot' : 'Alex Rivera'}</span>
+                  <span>{msg.sender === 'ai' ? 'ApexAI Copilot' : 'You'}</span>
                 </div>
                 <p>{msg.text}</p>
               </div>

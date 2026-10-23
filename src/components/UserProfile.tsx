@@ -328,20 +328,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
                 isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
               }`}>
                 <div>
-                  <div className={`font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>Checked Out STEP CAD Part PN-1001</div>
-                  <div className={`text-[10px] font-mono ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>CAD Vault &bull; 2026-08-22 09:14:02</div>
+                  <div className={`font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>Active Enterprise Session</div>
+                  <div className={`text-[10px] font-mono ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>
+                    Signed in as {user.email || user.name} &bull; Security Role: {user.systemRole || 'Standard'}
+                  </div>
                 </div>
-                <span className="badge-status badge-active text-[10px] font-mono">CAD EDIT</span>
-              </div>
-
-              <div className={`p-3 rounded-xl border flex items-center justify-between ${
-                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
-              }`}>
-                <div>
-                  <div className={`font-bold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>Logged into Enterprise SSO Platform</div>
-                  <div className={`text-[10px] font-mono ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>SSO Portal &bull; 2026-08-22 09:00:15</div>
-                </div>
-                <span className="badge-status badge-active text-[10px] font-mono">AUTH SUCCESS</span>
+                <span className="badge-status badge-active text-[10px] font-mono">AUTH ACTIVE</span>
               </div>
             </div>
           </div>

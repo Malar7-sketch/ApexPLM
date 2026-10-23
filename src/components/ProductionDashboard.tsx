@@ -76,49 +76,7 @@ interface ProductionDashboardProps {
   logAction?: (action: string, category: any, targetId: string, details: string) => void;
 }
 
-const INITIAL_REPORT_HISTORY: GeneratedReportRecord[] = [
-  {
-    id: 'REP-001',
-    reportType: 'Daily',
-    period: '25-Aug-2026',
-    reportId: 'DPR-20260825',
-    generatedBy: 'Alex Rivera, PE',
-    date: '2026-08-25 09:15',
-    status: 'Generated',
-    filename: 'ApexPLM_Daily_Production_Report_2026-08-25.pdf'
-  },
-  {
-    id: 'REP-002',
-    reportType: 'Weekly',
-    period: 'Week 34 | 18-Aug-2026 → 24-Aug-2026',
-    reportId: 'WPR-2026-W34',
-    generatedBy: 'Marcus Vance',
-    date: '2026-08-24 20:30',
-    status: 'Generated',
-    filename: 'ApexPLM_Weekly_Manufacturing_Report_2026-W34.pdf'
-  },
-  {
-    id: 'REP-003',
-    reportType: 'Monthly',
-    period: 'August 2026',
-    reportId: 'MPR-2026-08',
-    generatedBy: 'David Sterling',
-    date: '2026-08-24 18:15',
-    status: 'Generated',
-    filename: 'ApexPLM_Monthly_Manufacturing_Report_2026-08.pdf'
-  },
-  {
-    id: 'REP-004',
-    reportType: 'Comparison',
-    period: 'August 2026 vs July 2026',
-    reportId: 'CMP-2026-08V07',
-    generatedBy: 'Alex Rivera, PE',
-    date: '2026-08-24 17:40',
-    status: 'Generated',
-    filename: 'ApexPLM_Comparison_Production_Report_August_2026_vs_July_2026.pdf',
-    compType: 'month'
-  }
-];
+const INITIAL_REPORT_HISTORY: GeneratedReportRecord[] = [];
 
 export const ProductionDashboardInternal: React.FC<ProductionDashboardProps> = ({ currentUser, logAction }) => {
   const { isDark } = useTheme();
@@ -339,7 +297,7 @@ export const ProductionDashboardInternal: React.FC<ProductionDashboardProps> = (
       showToast(`Generating ${type} Production Report...`, 'Aggregating MES and machine telemetry data', 'info');
 
       let res;
-      const author = currentUser?.name || 'Alex Rivera, PE';
+      const author = currentUser?.name || 'Manufacturing Engineer';
       let periodLabel = '';
 
       if (type === 'Daily') {
@@ -1333,7 +1291,14 @@ export const ProductionDashboardInternal: React.FC<ProductionDashboardProps> = (
                   </tr>
                 </thead>
                 <tbody>
-                  {reportHistory.map((rep) => (
+                  {reportHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8 text-slate-400 font-sans">
+                        No manufacturing reports generated yet. Click Generate Report above to export production records.
+                      </td>
+                    </tr>
+                  ) : (
+                    reportHistory.map((rep) => (
                     <tr key={rep.id}>
                       <td className={isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}>{rep.date}</td>
                       <td>
@@ -1361,7 +1326,8 @@ export const ProductionDashboardInternal: React.FC<ProductionDashboardProps> = (
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1474,7 +1440,7 @@ export const ProductionDashboardInternal: React.FC<ProductionDashboardProps> = (
             reportType: type,
             period,
             reportId,
-            generatedBy: currentUser?.name || 'Alex Rivera, PE',
+            generatedBy: currentUser?.name || 'Manufacturing Engineer',
             date: new Date().toISOString().replace('T', ' ').substring(0, 16),
             status: 'Generated',
             filename
