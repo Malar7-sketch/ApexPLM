@@ -62,24 +62,26 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
 }) => {
   const { isDark } = useTheme();
 
-  // Generate next permanent Product ID (e.g. PN-1007)
+  // Generate next permanent Product ID (e.g. PRD-0001, PRD-0002)
   const nextAutoPartId = React.useMemo(() => {
     const nums = existingParts.map(p => {
-      const match = p.id.match(/PN-(\d+)/i);
+      const match = p.id.match(/(?:PRD|PN)-(\d+)/i);
       return match ? parseInt(match[1], 10) : 0;
     });
-    const max = nums.length > 0 ? Math.max(...nums) : 1000;
-    return `PN-${max + 1}`;
+    const validNums = nums.filter(n => n > 0 && n < 1000);
+    const max = validNums.length > 0 ? Math.max(...validNums) : 0;
+    return `PRD-${String(max + 1).padStart(4, '0')}`;
   }, [existingParts]);
 
-  // Generate next suggested Part Number (e.g. PRD-EV-9005)
+  // Generate next suggested Part Number (e.g. PART-0001)
   const nextSuggestedPartNumber = React.useMemo(() => {
     const nums = existingParts.map(p => {
-      const match = p.partNumber.match(/(\d+)$/);
+      const match = p.partNumber.match(/(?:PART|PRD|PN)-?(\d+)$/i);
       return match ? parseInt(match[1], 10) : 0;
     });
-    const max = nums.length > 0 ? Math.max(...nums) : 9000;
-    return `PRD-EV-${max + 1}`;
+    const validNums = nums.filter(n => n > 0 && n < 9000);
+    const max = validNums.length > 0 ? Math.max(...validNums) : 0;
+    return `PART-${String(max + 1).padStart(4, '0')}`;
   }, [existingParts]);
 
   // Section Navigation (0 = A, 1 = B, 2 = C, 3 = D, 4 = E, 5 = F)
@@ -333,7 +335,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
           productId: permanentProductId,
           partNumber: partNumber.trim(),
           projectId: projectId,
-          projectName: selectedProject?.name || 'Electric Scooter Development',
+          projectName: selectedProject?.name || 'Unassigned Project',
           fileName: f.name,
           fileType: f.type,
           category: f.type === 'PDF' ? 'drawing' : 'cad',
@@ -396,7 +398,7 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         lifecycleStage: lifecycleStage,
         isCheckedOut: false,
         projectId: projectId,
-        projectName: selectedProject?.name || 'Electric Scooter Development',
+        projectName: selectedProject?.name || 'Unassigned Project',
         completionPercent: 30,
         productStatus: 'DRAFT',
         productFamily,

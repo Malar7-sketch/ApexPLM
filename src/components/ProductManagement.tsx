@@ -502,7 +502,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                               ID: {part.id}
                             </span>
                             <span className="text-[10px] font-mono font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                              Rev {part.currentRev}
+                              {part.currentRev?.startsWith('Rev') ? part.currentRev : `Rev ${part.currentRev || '00'}`}
                             </span>
                             <span className="text-[10px] text-slate-400">
                               {part.category} &bull; {part.type}

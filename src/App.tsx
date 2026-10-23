@@ -468,26 +468,21 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Multi-user & Cross-tab synchronization listener
+  // Authoritative initial fetch and cross-tab/mutation synchronization listener
   useEffect(() => {
+    // Initial sync from MongoDB Atlas once upon mount
+    refreshAllFromBackend();
+
     const handleSync = () => {
       refreshAllFromBackend();
     };
 
     window.addEventListener('plm:project-sync', handleSync);
     window.addEventListener('plm:part-sync', handleSync);
-    window.addEventListener('focus', handleSync);
-    
-    // Continuous multi-user synchronization polling interval (every 4 seconds)
-    const pollInterval = setInterval(() => {
-      refreshAllFromBackend();
-    }, 4000);
 
     return () => {
       window.removeEventListener('plm:project-sync', handleSync);
       window.removeEventListener('plm:part-sync', handleSync);
-      window.removeEventListener('focus', handleSync);
-      clearInterval(pollInterval);
     };
   }, [refreshAllFromBackend]);
 
