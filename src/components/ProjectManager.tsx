@@ -33,6 +33,7 @@ import type { Project, ProjectTask, ProjectTeamMember, PartItem, EngineeringDocu
 import { useTheme } from '../context/ThemeContext';
 import { MOCK_USERS } from '../data/mockUsers';
 import { projectsApi } from '../services/api';
+import { safeSetItem, sanitizeDocumentsForStorage, sanitizePartsForStorage } from '../utils/safeStorage';
 
 
 interface ProjectManagerProps {
@@ -251,11 +252,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           ...updatedData
         };
       });
-      try {
-        localStorage.setItem('apex_plm_projects', JSON.stringify(updated));
-      } catch (err) {
-        console.error(err);
-      }
+      safeSetItem('apex_plm_projects', JSON.stringify(updated));
       return updated;
     });
 
@@ -319,11 +316,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
       // 2. Remove from projects list and sync localStorage
       setProjects(prev => {
         const next = prev.filter(p => p.id !== targetId && p.code !== targetCode && (p as any)._id !== targetId);
-        try {
-          localStorage.setItem('apex_plm_projects', JSON.stringify(next));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_projects', JSON.stringify(next));
         return next;
       });
 
@@ -341,11 +334,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             }
             return pt;
           });
-          try {
-            localStorage.setItem('apex_plm_parts', JSON.stringify(next));
-          } catch (e) {
-            console.error(e);
-          }
+          safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(next)));
           return next;
         });
       }
@@ -358,11 +347,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
                  !d.docNumber.includes(targetId) &&
                  !(d.title && d.title.toLowerCase().includes(targetName.toLowerCase()))
           );
-          try {
-            localStorage.setItem('apex_plm_documents', JSON.stringify(next));
-          } catch (e) {
-            console.error(e);
-          }
+          safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(next)));
           return next;
         });
       }
@@ -373,11 +358,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
           const next = prev.filter(
             e => !(e.targetProductId && (e.targetProductId.includes(targetCode) || e.targetProductId.includes(targetId)))
           );
-          try {
-            localStorage.setItem('apex_plm_ecrs', JSON.stringify(next));
-          } catch (e) {
-            console.error(e);
-          }
+          safeSetItem('apex_plm_ecrs', JSON.stringify(next));
           return next;
         });
       }

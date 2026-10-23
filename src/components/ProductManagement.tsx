@@ -28,6 +28,7 @@ import type {
 } from '../types/plm';
 import type { UserAccount } from '../data/mockUsers';
 import { useTheme } from '../context/ThemeContext';
+import { safeSetItem, sanitizeDocumentsForStorage, sanitizePartsForStorage } from '../utils/safeStorage';
 import { 
   purgeStoredCadVaultFiles, 
   recordDeletedProductId, 
@@ -215,11 +216,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
       // 2. Permanently delete from Product Master local state and storage
       setParts(prev => {
         const next = prev.filter(p => p.id !== targetId && p.partNumber !== targetPn);
-        try {
-          localStorage.setItem('apex_plm_parts', JSON.stringify(next));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(next)));
         return next;
       });
 
@@ -242,11 +239,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
             };
           }
         });
-        try {
-          localStorage.setItem('apex_plm_bom_trees', JSON.stringify(next));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_bom_trees', JSON.stringify(next));
         return next;
       });
 
@@ -258,11 +251,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                !d.docNumber.includes(targetPn) && 
                !d.docNumber.includes(targetId)
         );
-        try {
-          localStorage.setItem('apex_plm_documents', JSON.stringify(next));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(next)));
         return next;
       });
 

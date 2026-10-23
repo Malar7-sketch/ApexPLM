@@ -80,6 +80,16 @@ import {
   clearAllSessionData
 } from './services/api';
 
+import {
+  safeSetItem,
+  sanitizeDocumentsForStorage,
+  sanitizePartsForStorage,
+  pruneOversizedStorage
+} from './utils/safeStorage';
+
+// Free up bloated localStorage keys on initialization
+pruneOversizedStorage();
+
 
 import type { 
   UserPersona, 
@@ -298,38 +308,22 @@ export const App: React.FC = () => {
 
   // Sync parts to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_parts', JSON.stringify(parts));
-    } catch (e) {
-      console.error('Failed to save parts to storage:', e);
-    }
+    safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(parts)));
   }, [parts]);
 
   // Sync bomTrees to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_bom_trees', JSON.stringify(bomTrees));
-    } catch (e) {
-      console.error('Failed to save bomTrees to storage:', e);
-    }
+    safeSetItem('apex_plm_bom_trees', JSON.stringify(bomTrees));
   }, [bomTrees]);
 
   // Sync ECRs to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_ecrs', JSON.stringify(ecrs));
-    } catch (e) {
-      console.error('Failed to save ECRs to storage:', e);
-    }
+    safeSetItem('apex_plm_ecrs', JSON.stringify(ecrs));
   }, [ecrs]);
 
   // Sync ECNs to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_ecns', JSON.stringify(ecns));
-    } catch (e) {
-      console.error('Failed to save ECNs to storage:', e);
-    }
+    safeSetItem('apex_plm_ecns', JSON.stringify(ecns));
   }, [ecns]);
 
   const [gates, setGates] = useState<StageGate[]>(INITIAL_STAGE_GATES);
@@ -354,13 +348,9 @@ export const App: React.FC = () => {
     return [];
   });
 
-  // Sync documents to localStorage
+  // Sync documents to localStorage (safe and lightweight)
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_documents', JSON.stringify(documents));
-    } catch (e) {
-      console.error('Failed to save documents to storage:', e);
-    }
+    safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(documents)));
   }, [documents]);
 
   const [ncrs, setNcrs] = useState<QualityNCR[]>(() => {
@@ -378,11 +368,7 @@ export const App: React.FC = () => {
 
   // Sync NCRs to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_ncrs_v1', JSON.stringify(ncrs));
-    } catch (e) {
-      console.error('Failed to save NCRs to storage:', e);
-    }
+    safeSetItem('apex_plm_ncrs_v1', JSON.stringify(ncrs));
   }, [ncrs]);
 
   const [capas, setCapas] = useState(INITIAL_CAPAS);
@@ -402,11 +388,7 @@ export const App: React.FC = () => {
 
   // Sync projects to localStorage
   React.useEffect(() => {
-    try {
-      localStorage.setItem('apex_plm_projects', JSON.stringify(projects));
-    } catch (e) {
-      console.error(e);
-    }
+    safeSetItem('apex_plm_projects', JSON.stringify(projects));
   }, [projects]);
 
   // Real-time authoritative MongoDB synchronization helper for all PLM entities
@@ -438,11 +420,7 @@ export const App: React.FC = () => {
 
       if (dbParts.status === 'fulfilled' && Array.isArray(dbParts.value)) {
         setParts(dbParts.value);
-        try {
-          localStorage.setItem('apex_plm_parts', JSON.stringify(dbParts.value));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(dbParts.value)));
       }
 
       if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value)) {
@@ -454,47 +432,27 @@ export const App: React.FC = () => {
         ];
         const realDbDocs = dbDocs.value.filter(d => !sampleNumbers.includes(d.id) && !sampleNumbers.includes(d.docNumber));
         setDocuments(realDbDocs);
-        try {
-          localStorage.setItem('apex_plm_documents', JSON.stringify(realDbDocs));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(realDbDocs)));
       }
 
       if (dbNcrs.status === 'fulfilled' && Array.isArray(dbNcrs.value)) {
         setNcrs(dbNcrs.value);
-        try {
-          localStorage.setItem('apex_plm_ncrs_v1', JSON.stringify(dbNcrs.value));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_ncrs_v1', JSON.stringify(dbNcrs.value));
       }
 
       if (dbBoms.status === 'fulfilled' && dbBoms.value && typeof dbBoms.value === 'object') {
         setBomTrees(dbBoms.value);
-        try {
-          localStorage.setItem('apex_plm_bom_trees', JSON.stringify(dbBoms.value));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_bom_trees', JSON.stringify(dbBoms.value));
       }
 
       if (dbUsers.status === 'fulfilled' && Array.isArray(dbUsers.value)) {
         setUserAccounts(dbUsers.value);
-        try {
-          localStorage.setItem('apex_plm_users', JSON.stringify(dbUsers.value));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_users', JSON.stringify(dbUsers.value));
       }
 
       if (dbAuditLogs.status === 'fulfilled' && Array.isArray(dbAuditLogs.value)) {
         setAuditLogs(dbAuditLogs.value);
-        try {
-          localStorage.setItem('apex_plm_audit_logs', JSON.stringify(dbAuditLogs.value));
-        } catch (e) {
-          console.error(e);
-        }
+        safeSetItem('apex_plm_audit_logs', JSON.stringify(dbAuditLogs.value));
       }
     } catch (err) {
       console.warn('Backend authoritative sync failed:', err);
@@ -1426,7 +1384,7 @@ export const App: React.FC = () => {
                         ];
                         const realDocs = dbDocs.filter(d => !sampleNumbers.includes(d.id) && !sampleNumbers.includes(d.docNumber));
                         setDocuments(realDocs);
-                        localStorage.setItem('apex_plm_documents', JSON.stringify(realDocs));
+                        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(realDocs)));
                       }
                     } catch (e) {
                       console.warn('Backend documents fetch error:', e);

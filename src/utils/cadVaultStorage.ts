@@ -1,6 +1,7 @@
 import type { PartItem, PermissionMatrix, AuditLog, StoredCadVaultFile } from '../types/plm';
 import { hasPermission } from './rbac';
 import { generateEngineeringDrawingPdf } from './engineeringDrawingPdf';
+import { safeSetItem } from './safeStorage';
 
 export type FileDownloadType = 'cad' | 'step' | 'pdf';
 
@@ -69,22 +70,16 @@ export function registerCadVaultFile(file: StoredCadVaultFile): void {
     const allFiles = cadVaultFileStore.get(primaryKey) || [];
     // Only store lightweight metadata array to prevent exceeding localStorage quota
     const metaArray = allFiles.map(({ dataUrl, ...meta }) => meta);
-    localStorage.setItem(`apex_vault_meta_${primaryKey}`, JSON.stringify(metaArray));
+    safeSetItem(`apex_vault_meta_${primaryKey}`, JSON.stringify(metaArray));
 
-    // Try storing individual dataUrl under specific keys
-    if (file.category === 'cad' || file.fileType === 'STEP' || file.fileType === 'STP') {
-      try {
-        localStorage.setItem(`apex_vault_file_${primaryKey}_cad`, file.dataUrl);
-        localStorage.setItem(`apex_vault_name_${primaryKey}_cad`, file.fileName);
-      } catch (e) {
-        // LocalStorage quota may be exceeded for large CAD files; in-memory cache preserves it
-      }
-    } else if (file.fileType === 'PDF' || file.category === 'drawing') {
-      try {
-        localStorage.setItem(`apex_vault_file_${primaryKey}_pdf`, file.dataUrl);
-        localStorage.setItem(`apex_vault_name_${primaryKey}_pdf`, file.fileName);
-      } catch (e) {
-        // Quota safety
+    // Try storing individual dataUrl only if lightweight (< 50KB)
+    if (file.dataUrl && file.dataUrl.length < 50000) {
+      if (file.category === 'cad' || file.fileType === 'STEP' || file.fileType === 'STP') {
+        safeSetItem(`apex_vault_file_${primaryKey}_cad`, file.dataUrl);
+        safeSetItem(`apex_vault_name_${primaryKey}_cad`, file.fileName);
+      } else if (file.fileType === 'PDF' || file.category === 'drawing') {
+        safeSetItem(`apex_vault_file_${primaryKey}_pdf`, file.dataUrl);
+        safeSetItem(`apex_vault_name_${primaryKey}_pdf`, file.fileName);
       }
     }
   } catch (e) {
