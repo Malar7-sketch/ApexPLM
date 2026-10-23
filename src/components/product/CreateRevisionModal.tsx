@@ -264,6 +264,7 @@ export const CreateRevisionModal: React.FC<CreateRevisionModalProps> = ({
           id: `VAULT-${docId}`,
           productId: product.id,
           partNumber: product.partNumber,
+          revision: newRevNumber,
           projectId: product.projectId,
           projectName: product.projectName,
           fileName: f.name,

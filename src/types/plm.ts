@@ -74,6 +74,7 @@ export interface StoredCadVaultFile {
   id: string;
   productId: string;        // Product ID / partNumber
   partNumber: string;       // Part Number
+  revision?: string;        // Revision code
   projectId?: string;       // Linked Project ID
   projectName?: string;     // Linked Project Name
   fileName: string;
