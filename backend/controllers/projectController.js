@@ -235,9 +235,10 @@ const deleteProject = async (req, res, next) => {
           deletedCode: pCode,
         });
       }
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found in database.',
+      return res.status(200).json({
+        success: true,
+        message: 'Project already deleted or not found in database.',
+        deletedId: rawParam,
       });
     }
 

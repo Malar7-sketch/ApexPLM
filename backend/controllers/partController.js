@@ -222,9 +222,10 @@ const deletePart = async (req, res, next) => {
           deletedPartNumber: pNum,
         });
       }
-      return res.status(404).json({
-        success: false,
-        message: 'Part not found in database.',
+      return res.status(200).json({
+        success: true,
+        message: 'Part already removed or not found in database.',
+        deletedId: rawParam,
       });
     }
 

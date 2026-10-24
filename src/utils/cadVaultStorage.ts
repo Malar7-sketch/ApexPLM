@@ -111,19 +111,49 @@ export function purgeStoredCadVaultFiles(partIdOrNumber: string): void {
   }
 }
 
+const deletedProductIdsSet = new Set<string>();
+
 /**
  * Check if a product ID or part number has been permanently deleted/blacklisted
- * (Deprecated: MongoDB is single source of truth)
  */
-export function isProductIdDeleted(_idOrPartNumber: string): boolean {
+export function isProductIdDeleted(idOrPartNumber: string): boolean {
+  if (!idOrPartNumber) return false;
+  if (deletedProductIdsSet.has(idOrPartNumber)) return true;
+  try {
+    const raw = localStorage.getItem('apex_plm_deleted_product_ids');
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.includes(idOrPartNumber)) {
+        deletedProductIdsSet.add(idOrPartNumber);
+        return true;
+      }
+    }
+  } catch {
+    // ignore
+  }
   return false;
 }
 
 /**
- * Record deleted product IDs (No-op: MongoDB is single source of truth)
+ * Record deleted product IDs to prevent resurrection during sync
  */
-export function recordDeletedProductId(_ids: string[]): void {
-  // MongoDB Atlas is single source of truth
+export function recordDeletedProductId(ids: string[]): void {
+  if (!Array.isArray(ids)) return;
+  try {
+    const raw = localStorage.getItem('apex_plm_deleted_product_ids');
+    const existing: string[] = raw ? JSON.parse(raw) : [];
+    ids.forEach(id => {
+      if (id) {
+        deletedProductIdsSet.add(id);
+        if (!existing.includes(id)) {
+          existing.push(id);
+        }
+      }
+    });
+    localStorage.setItem('apex_plm_deleted_product_ids', JSON.stringify(existing.slice(-200)));
+  } catch {
+    // ignore
+  }
 }
 
 /**

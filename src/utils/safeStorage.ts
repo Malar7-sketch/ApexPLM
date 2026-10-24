@@ -54,37 +54,111 @@ export function sanitizeDocumentsForStorage(docs: EngineeringDocument[]): Engine
 export function sanitizePartsForStorage(parts: PartItem[]): PartItem[] {
   if (!Array.isArray(parts)) return [];
   return parts.map(part => {
-    if (!part.cadMetadata) return part;
+    let cm = part.cadMetadata;
+    if (cm) {
+      const isLargeCad = typeof cm.cadFile === 'string' && (cm.cadFile.length > 50000 || cm.cadFile.startsWith('data:'));
+      const isLargeStep = typeof cm.stepFile === 'string' && (cm.stepFile.length > 50000 || cm.stepFile.startsWith('data:'));
+      const isLargePdf = typeof cm.pdfFile === 'string' && (cm.pdfFile.length > 50000 || cm.pdfFile.startsWith('data:'));
 
-    const cm = part.cadMetadata;
-    const isLargeCad = typeof cm.cadFile === 'string' && cm.cadFile.length > 50000;
-    const isLargeStep = typeof cm.stepFile === 'string' && cm.stepFile.length > 50000;
-    const isLargePdf = typeof cm.pdfFile === 'string' && cm.pdfFile.length > 50000;
+      let attached = cm.attachedFiles;
+      if (Array.isArray(attached)) {
+        attached = attached.map(f => {
+          if (typeof f?.dataUrl === 'string' && f.dataUrl.length > 50000) {
+            return { ...f, dataUrl: '' };
+          }
+          return f;
+        });
+      }
 
-    let attached = cm.attachedFiles;
-    if (Array.isArray(attached)) {
-      attached = attached.map(f => {
-        if (typeof f.dataUrl === 'string' && f.dataUrl.length > 50000) {
-          return { ...f, dataUrl: '' };
+      cm = {
+        ...cm,
+        cadFile: isLargeCad ? undefined : cm.cadFile,
+        stepFile: isLargeStep ? undefined : cm.stepFile,
+        pdfFile: isLargePdf ? undefined : cm.pdfFile,
+        attachedFiles: attached
+      };
+    }
+
+    // Also sanitize revisionHistory
+    let revHistory = part.revisionHistory;
+    if (Array.isArray(revHistory)) {
+      revHistory = revHistory.map(rev => {
+        if (rev && Array.isArray(rev.attachedFiles)) {
+          return {
+            ...rev,
+            attachedFiles: rev.attachedFiles.map((f: any) => {
+              if (typeof f?.dataUrl === 'string' && f.dataUrl.length > 50000) {
+                return { ...f, dataUrl: '' };
+              }
+              return f;
+            })
+          };
         }
-        return f;
+        return rev;
       });
     }
 
-    if (isLargeCad || isLargeStep || isLargePdf || attached !== cm.attachedFiles) {
-      return {
-        ...part,
-        cadMetadata: {
-          ...cm,
-          cadFile: isLargeCad ? undefined : cm.cadFile,
-          stepFile: isLargeStep ? undefined : cm.stepFile,
-          pdfFile: isLargePdf ? undefined : cm.pdfFile,
-          attachedFiles: attached
-        }
-      };
-    }
-    return part;
+    return {
+      ...part,
+      cadMetadata: cm,
+      revisionHistory: revHistory
+    };
   });
+}
+
+/**
+ * Strip all large base64 file data URLs before sending part to MongoDB Atlas backend.
+ * Keeps all metadata intact while ensuring the payload is ~15KB instead of 50MB.
+ */
+export function preparePartForBackend(part: PartItem): PartItem {
+  const sanitized = sanitizePartsForStorage([part])[0] || part;
+  const cm = sanitized.cadMetadata ? { ...sanitized.cadMetadata } : undefined;
+  if (cm) {
+    delete cm.cadFile;
+    delete cm.stepFile;
+    delete cm.pdfFile;
+    if (Array.isArray(cm.attachedFiles)) {
+      cm.attachedFiles = cm.attachedFiles.map((item: any) => {
+        const { dataUrl: _drop, ...rest } = item || {};
+        return { ...rest, dataUrl: '' };
+      });
+    }
+  }
+
+  let revHistory = sanitized.revisionHistory;
+  if (Array.isArray(revHistory)) {
+    revHistory = revHistory.map(rev => {
+      if (rev && Array.isArray(rev.attachedFiles)) {
+        return {
+          ...rev,
+          attachedFiles: rev.attachedFiles.map((f: any) => {
+            const { dataUrl: _drop, ...rest } = f || {};
+            return { ...rest, dataUrl: '' };
+          })
+        };
+      }
+      return rev;
+    });
+  }
+
+  return {
+    ...sanitized,
+    ...(cm ? { cadMetadata: cm } : {}),
+    revisionHistory: revHistory
+  };
+}
+
+/**
+ * Strip large base64 file data URLs before sending document to MongoDB Atlas backend.
+ */
+export function prepareDocumentForBackend(doc: EngineeringDocument): EngineeringDocument {
+  if (typeof doc.fileUrl === 'string' && (doc.fileUrl.length > 50000 || doc.fileUrl.startsWith('data:'))) {
+    return {
+      ...doc,
+      fileUrl: ''
+    };
+  }
+  return doc;
 }
 
 /**
@@ -108,7 +182,7 @@ export function safeSetItem(key: string, value: string): boolean {
       try {
         localStorage.setItem(key, value);
         return true;
-      } catch (retryErr) {
+      } catch {
         // If still failing and setting documents or parts, attempt emergency strip
         if (key === 'apex_plm_documents') {
           try {

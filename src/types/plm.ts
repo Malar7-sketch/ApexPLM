@@ -260,6 +260,15 @@ export interface ECR {
   createdBy?: string;
   signoffs?: Record<UserPersona, SignoffStatus>;
   attachments?: EcrAttachment[];
+  issueImage?: string;
+  issueImageName?: string;
+  issueImageCaption?: string;
+  assignedEngineers?: {
+    designEngineer?: string;
+    mfgEngineer?: string;
+    qualityEngineer?: string;
+    pmEngineer?: string;
+  };
 }
 
 export type EcnPipelineStage = 'Draft' | 'Design Review' | 'Mfg Review' | 'Quality Review' | 'Final Signoff' | 'Released';

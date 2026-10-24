@@ -186,94 +186,79 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     }
     if (!partToDelete) return;
 
-    setIsDeleting(true);
     const targetId = partToDelete.id;
     const targetPn = partToDelete.partNumber;
     const targetName = partToDelete.name;
 
-    try {
-      // 1. Permanently delete from MongoDB Atlas via backend API
-      try {
-        await partsApi.delete(targetId);
-      } catch (err: any) {
-        console.warn('Backend partsApi delete (ID) failed:', err.message);
-      }
+    // 1. Immediately close confirmation modal & reset selection to prevent UI freeze
+    setProductToDelete(null);
+    if (selectedProductId === targetId || selectedProductId === targetPn) {
+      setSelectedProductId(null);
+      setViewMode('list');
+    }
 
-      if (targetPn && targetPn !== targetId) {
-        try {
-          await partsApi.delete(targetPn);
-        } catch {
-          // Ignore
+    // 2. Permanently delete from Product Master local state and storage immediately
+    setParts(prev => {
+      const next = prev.filter(p => p.id !== targetId && p.partNumber !== targetPn);
+      safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(next)));
+      return next;
+    });
+
+    // 3. Permanently purge CAD Files and associated Vault metadata
+    purgeStoredCadVaultFiles(targetId);
+    purgeStoredCadVaultFiles(targetPn);
+
+    // 4. Permanently purge BOM / EBOM trees
+    setBomTrees(prev => {
+      const next = { ...prev };
+      delete next[targetId];
+      delete next[targetPn];
+      Object.keys(next).forEach(treeKey => {
+        if (next[treeKey]?.children) {
+          next[treeKey] = {
+            ...next[treeKey],
+            children: next[treeKey].children.filter(
+              c => c.partId !== targetId && c.partNumber !== targetPn && c.id !== targetId
+            )
+          };
         }
-      }
-
-      try {
-        await bomApi.delete(targetId);
-      } catch {
-        // Ignore
-      }
-
-      // 2. Permanently delete from Product Master local state and storage
-      setParts(prev => {
-        const next = prev.filter(p => p.id !== targetId && p.partNumber !== targetPn);
-        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(next)));
-        return next;
       });
+      safeSetItem('apex_plm_bom_trees', JSON.stringify(next));
+      return next;
+    });
 
-      // 3. Permanently purge CAD Files and associated Vault metadata
-      purgeStoredCadVaultFiles(targetId);
-      purgeStoredCadVaultFiles(targetPn);
-
-      // 4. Permanently purge BOM / EBOM trees
-      setBomTrees(prev => {
-        const next = { ...prev };
-        delete next[targetId];
-        delete next[targetPn];
-        Object.keys(next).forEach(treeKey => {
-          if (next[treeKey]?.children) {
-            next[treeKey] = {
-              ...next[treeKey],
-              children: next[treeKey].children.filter(
-                c => c.partId !== targetId && c.partNumber !== targetPn && c.id !== targetId
-              )
-            };
-          }
-        });
-        safeSetItem('apex_plm_bom_trees', JSON.stringify(next));
-        return next;
-      });
-
-      // 5. Permanently purge Engineering Documents
-      setDocuments(prev => {
-        const next = prev.filter(
-          d => d.linkedPartId !== targetId && 
-               d.linkedPartId !== targetPn && 
-               !d.docNumber.includes(targetPn) && 
-               !d.docNumber.includes(targetId)
-        );
-        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(next)));
-        return next;
-      });
-
-      // 6. Record purged ID to prevent resurrection
-      recordDeletedProductId([targetId, targetPn]);
-
-      logAction(
-        'Permanently Purged Product Master',
-        'SYSTEM',
-        targetPn,
-        `Admin permanently purged product "${targetName}" (${targetPn}, ID: ${targetId}) across all PLM modules and database.`
+    // 5. Permanently purge Engineering Documents
+    setDocuments(prev => {
+      const next = prev.filter(
+        d => d.linkedPartId !== targetId && 
+             d.linkedPartId !== targetPn && 
+             !d.docNumber.includes(targetPn) && 
+             !d.docNumber.includes(targetId)
       );
+      safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(next)));
+      return next;
+    });
 
-      window.dispatchEvent(new CustomEvent('plm:part-sync'));
-      setProductToDelete(null);
-      if (selectedProductId === targetId) {
-        setViewMode('list');
-      }
-    } catch (e: any) {
-      alert('Delete failed: ' + e.message);
-    } finally {
-      setIsDeleting(false);
+    // 6. Record purged ID to prevent resurrection on future backend sync
+    recordDeletedProductId([targetId, targetPn]);
+
+    logAction(
+      'Permanently Purged Product Master',
+      'SYSTEM',
+      targetPn,
+      `Admin permanently purged product "${targetName}" (${targetPn}, ID: ${targetId}) across all PLM modules and database.`
+    );
+
+    // 7. Background asynchronous deletion from MongoDB Atlas
+    try {
+      await Promise.allSettled([
+        partsApi.delete(targetId),
+        ...(targetPn && targetPn !== targetId ? [partsApi.delete(targetPn)] : []),
+        bomApi.delete(targetId),
+        ...(targetPn && targetPn !== targetId ? [bomApi.delete(targetPn)] : [])
+      ]);
+    } catch (err: any) {
+      console.warn('Background MongoDB part delete completed:', err.message);
     }
   };
 

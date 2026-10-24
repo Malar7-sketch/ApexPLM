@@ -11,7 +11,14 @@ import {
   Layers, 
   FileText, 
   Save, 
-  Plus
+  Plus,
+  Image as ImageIcon,
+  Camera,
+  UploadCloud,
+  Trash2,
+  Users,
+  UserCheck,
+  Eye
 } from 'lucide-react';
 import type { ECR, PartItem, UserPersona, EcrSeverity, EcrRootCause } from '../types/plm';
 import { USER_PERSONAS } from '../data/mockPlmData';
@@ -80,6 +87,19 @@ export const CreateEcrModal: React.FC<CreateEcrModalProps> = ({
     return d.toISOString().split('T')[0];
   });
 
+  // Issue Photo Evidence State
+  const [issueImage, setIssueImage] = useState<string>('');
+  const [issueImageName, setIssueImageName] = useState<string>('');
+  const [issueImageCaption, setIssueImageCaption] = useState<string>('');
+  const [imageError, setImageError] = useState<string>('');
+  const [isDraggingImage, setIsDraggingImage] = useState<boolean>(false);
+
+  // Assigned Discipline Signoff Engineers
+  const [assignedDesignEngineer, setAssignedDesignEngineer] = useState<string>('Alex Rivera, PE');
+  const [assignedMfgEngineer, setAssignedMfgEngineer] = useState<string>('Marcus Vance');
+  const [assignedQualityEngineer, setAssignedQualityEngineer] = useState<string>('Dr. Elena Rostova');
+  const [assignedPmEngineer, setAssignedPmEngineer] = useState<string>('David Sterling');
+
   // Validation Error State
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -105,10 +125,48 @@ export const CreateEcrModal: React.FC<CreateEcrModalProps> = ({
       setAffectedComponents('Housing, Bearing Races, Seal Carrier');
       setChangeCategory('Mechanical DFM & Tolerancing');
       setRiskLevel('Medium');
+      setIssueImage('');
+      setIssueImageName('');
+      setIssueImageCaption('');
+      setImageError('');
+      setAssignedDesignEngineer(currentUser?.role === 'DESIGN_ENGINEER' ? currentUser.name : 'Alex Rivera, PE');
+      setAssignedMfgEngineer(currentUser?.role === 'MANUFACTURING_ENGINEER' ? currentUser.name : 'Marcus Vance');
+      setAssignedQualityEngineer(currentUser?.role === 'QUALITY_ENGINEER' ? currentUser.name : 'Dr. Elena Rostova');
+      setAssignedPmEngineer('David Sterling');
       setErrors({});
       setTouched({});
     }
   }, [isOpen, existingEcrs]);
+
+  const handleImageFile = (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please select a valid image file (PNG, JPG, WEBP, SVG).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('Image size exceeds 5MB limit. Please choose a smaller image.');
+      return;
+    }
+    setImageError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setIssueImage(dataUrl);
+      setIssueImageName(file.name);
+      if (!issueImageCaption) {
+        setIssueImageCaption(`Defect / inspection photo for ${title || 'ECR'}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setIssueImage('');
+    setIssueImageName('');
+    setIssueImageCaption('');
+    setImageError('');
+  };
 
   // Helper to suggest next revision string (e.g. "Rev B.0" -> "B.1", "A.4" -> "B.0")
   function suggestNextRev(revStr: string): string {
@@ -239,11 +297,20 @@ export const CreateEcrModal: React.FC<CreateEcrModalProps> = ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       createdBy: authorName,
+      issueImage: issueImage || undefined,
+      issueImageName: issueImageName || undefined,
+      issueImageCaption: issueImageCaption.trim() || undefined,
+      assignedEngineers: {
+        designEngineer: assignedDesignEngineer.trim() || 'Alex Rivera, PE',
+        mfgEngineer: assignedMfgEngineer.trim() || 'Marcus Vance',
+        qualityEngineer: assignedQualityEngineer.trim() || 'Dr. Elena Rostova',
+        pmEngineer: assignedPmEngineer.trim() || 'David Sterling'
+      },
       signoffs: {
-        design: { persona: 'design', approved: false, approverName: 'Alex Rivera, PE' },
-        mfg: { persona: 'mfg', approved: false, approverName: 'Marcus Vance' },
-        quality: { persona: 'quality', approved: false, approverName: 'Dr. Elena Rostova' },
-        pm: { persona: 'pm', approved: false, approverName: 'David Sterling' },
+        design: { persona: 'design', approved: false, approverName: assignedDesignEngineer.trim() || 'Alex Rivera, PE' },
+        mfg: { persona: 'mfg', approved: false, approverName: assignedMfgEngineer.trim() || 'Marcus Vance' },
+        quality: { persona: 'quality', approved: false, approverName: assignedQualityEngineer.trim() || 'Dr. Elena Rostova' },
+        pm: { persona: 'pm', approved: false, approverName: assignedPmEngineer.trim() || 'David Sterling' },
         admin: { persona: 'admin', approved: false, approverName: 'System Admin' }
       }
     };
@@ -507,7 +574,218 @@ export const CreateEcrModal: React.FC<CreateEcrModalProps> = ({
 
           </div>
 
-          {/* 4. Additional Engineering Metadata */}
+          {/* 4. Defect / Issue Evidence Photo Upload */}
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            isDark ? 'bg-[#0D1628]/60 border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Camera className="w-4 h-4 text-cyan-500" />
+                <span className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                  Defect / Issue Evidence Photo (ECR Visual Inspection)
+                </span>
+              </div>
+              <span className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                Optional • PNG, JPG, WEBP (Max 5MB)
+              </span>
+            </div>
+
+            {issueImage ? (
+              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-center gap-4 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="relative group shrink-0">
+                  <img
+                    src={issueImage}
+                    alt="Defect Evidence"
+                    className="w-28 h-24 object-cover rounded-lg border border-cyan-500/30 shadow-md"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <span className="text-[10px] text-white font-semibold">Attached</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-semibold text-cyan-400 truncate max-w-[220px]">
+                      {issueImageName || 'defect_evidence.png'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="text-rose-500 hover:text-rose-400 text-xs flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Photo</span>
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Add caption (e.g. Tooth root fatigue micro-crack under 450 Nm overload)"
+                    value={issueImageCaption}
+                    onChange={(e) => setIssueImageCaption(e.target.value)}
+                    className="plm-input w-full text-xs"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(true);
+                }}
+                onDragLeave={() => setIsDraggingImage(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleImageFile(e.dataTransfer.files[0]);
+                  }
+                }}
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors cursor-pointer ${
+                  isDraggingImage
+                    ? 'border-cyan-500 bg-cyan-500/10'
+                    : isDark
+                    ? 'border-[#243149] hover:border-cyan-500/50 bg-[#111B2E]/40'
+                    : 'border-slate-300 hover:border-cyan-500 bg-white'
+                }`}
+                onClick={() => {
+                  const input = document.getElementById('ecr-create-image-input') as HTMLInputElement;
+                  input?.click();
+                }}
+              >
+                <input
+                  id="ecr-create-image-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleImageFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                <div className="flex flex-col items-center space-y-1.5">
+                  <div className={`p-2.5 rounded-full ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div className={`text-xs font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                    Click to upload defect photo or drag & drop image here
+                  </div>
+                  <div className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                    Supports metallographic cracks, assembly interference, CMM deviations, or endurance test damage
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {imageError && (
+              <div className="text-rose-500 text-[11px] flex items-center space-x-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 5. Assigned Review & Signoff Engineers */}
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            isDark ? 'bg-[#0D1628]/60 border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-cyan-500" />
+                <span className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                  Assigned Review & Signoff Engineers (ISO 9001 Routing)
+                </span>
+              </div>
+              <span className={`text-[11px] font-medium text-emerald-500`}>
+                Only Assigned Engineers & Admin can Sign & Edit
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              
+              {/* 1. Design Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-cyan-500/20 text-cyan-400">
+                    R&D Product Engineering
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>Lead Design</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Design Engineer Name (e.g. Alex Rivera, PE)"
+                  value={assignedDesignEngineer}
+                  onChange={(e) => setAssignedDesignEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 2. Manufacturing Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400">
+                    Advanced Manufacturing & DFM
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>Mfg Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Manufacturing Engineer Name (e.g. Marcus Vance)"
+                  value={assignedMfgEngineer}
+                  onChange={(e) => setAssignedMfgEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 3. Quality Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400">
+                    Quality Assurance & ISO 9001
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>QA Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Quality Engineer Name (e.g. Dr. Elena Rostova)"
+                  value={assignedQualityEngineer}
+                  onChange={(e) => setAssignedQualityEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 4. Program Manager */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-purple-500/20 text-purple-400">
+                    Program Management Office
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>PMO Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Program Director Name (e.g. David Sterling)"
+                  value={assignedPmEngineer}
+                  onChange={(e) => setAssignedPmEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+            </div>
+          </div>
+
+          {/* 6. Additional Engineering Metadata */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
             
             <div className="space-y-1">

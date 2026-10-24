@@ -30,6 +30,7 @@ import type {
 import type { UserAccount } from '../../data/mockUsers';
 import { useTheme } from '../../context/ThemeContext';
 import { registerCadVaultFile } from '../../utils/cadVaultStorage';
+import { preparePartForBackend, prepareDocumentForBackend } from '../../utils/safeStorage';
 import { partsApi, bomApi, documentsApi } from '../../services/api';
 
 interface NewProductFormProps {
@@ -449,12 +450,8 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         children: initialRevisionRecord.bomSnapshot
       };
 
-      // 7. Persist to MongoDB Atlas via backend APIs
-      await Promise.allSettled([
-        partsApi.create(newProduct),
-        bomApi.save(permanentProductId, newBOMRoot, projectId),
-        ...newDocsToSave.map(doc => documentsApi.create(doc))
-      ]);
+      // 7. Optimistically notify parent and transition UI immediately (instant UX)
+      onSuccess(newProduct, newDocsToSave, newBOMRoot);
 
       // 8. Record Enterprise Audit Log
       logAction(
@@ -464,12 +461,31 @@ export const NewProductForm: React.FC<NewProductFormProps> = ({
         `Created Product Master "${newProduct.name}" (${newProduct.partNumber}, ID: ${newProduct.id}) with initial revision ${revisionNumber} and ${newDocsToSave.length} attached documents.`
       );
 
-      // 9. Dispatch sync event & complete
-      window.dispatchEvent(new CustomEvent('plm:part-sync'));
-      onSuccess(newProduct, newDocsToSave, newBOMRoot);
+      // 9. Persist lightweight sanitized metadata to MongoDB Atlas in background
+      const backendProduct = preparePartForBackend(newProduct);
+      const backendDocs = newDocsToSave.map(prepareDocumentForBackend);
+
+      Promise.allSettled([
+        partsApi.create(backendProduct),
+        bomApi.save(permanentProductId, newBOMRoot, projectId),
+        ...backendDocs.map(doc => documentsApi.create(doc))
+      ]).then((results) => {
+        const partResult = results[0];
+        if (partResult.status === 'fulfilled' && (partResult.value as any)?.part) {
+          const savedPart = (partResult.value as any).part;
+          const finalId = savedPart.id || savedPart._id;
+          if (finalId && finalId !== permanentProductId) {
+            window.dispatchEvent(new CustomEvent('plm:part-id-update', {
+              detail: { oldId: permanentProductId, newId: finalId }
+            }));
+          }
+        }
+      }).catch(err => {
+        console.warn('Background MongoDB part save warning:', err);
+      });
     } catch (err: any) {
       console.error('Failed to create product master:', err);
-      setValidationError(err.message || 'Failed to create product master in backend. Please retry.');
+      setValidationError(err.message || 'Failed to create product master. Please retry.');
     } finally {
       setIsSubmitting(false);
     }

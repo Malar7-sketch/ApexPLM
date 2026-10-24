@@ -141,9 +141,9 @@ const deleteBOM = async (req, res, next) => {
     }
 
     if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: 'BOM not found.',
+      return res.status(200).json({
+        success: true,
+        message: 'BOM already deleted or not found.',
       });
     }
 

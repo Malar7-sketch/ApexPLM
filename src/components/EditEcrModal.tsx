@@ -18,7 +18,11 @@ import {
   FileCode,
   FileSpreadsheet,
   FileImage,
-  AlertTriangle
+  AlertTriangle,
+  Camera,
+  Image as ImageIcon,
+  Users,
+  Lock
 } from 'lucide-react';
 import type { ECR, PartItem, UserPersona, EcrSeverity, EcrRootCause, EcrAttachment } from '../types/plm';
 import { USER_PERSONAS } from '../data/mockPlmData';
@@ -47,7 +51,6 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
   const { isDark } = useTheme();
   const partsList = Object.values(partsMap);
 
-
   // Form States
   const [ecrNumber, setEcrNumber] = useState<string>('');
   const [title, setTitle] = useState<string>('');
@@ -63,6 +66,19 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
   const [affectedComponents, setAffectedComponents] = useState<string>('');
   const [attachments, setAttachments] = useState<EcrAttachment[]>([]);
   
+  // Issue Photo Evidence State
+  const [issueImage, setIssueImage] = useState<string>('');
+  const [issueImageName, setIssueImageName] = useState<string>('');
+  const [issueImageCaption, setIssueImageCaption] = useState<string>('');
+  const [imageError, setImageError] = useState<string>('');
+  const [isDraggingImage, setIsDraggingImage] = useState<boolean>(false);
+
+  // Assigned Discipline Signoff Engineers
+  const [assignedDesignEngineer, setAssignedDesignEngineer] = useState<string>('Alex Rivera, PE');
+  const [assignedMfgEngineer, setAssignedMfgEngineer] = useState<string>('Marcus Vance');
+  const [assignedQualityEngineer, setAssignedQualityEngineer] = useState<string>('Dr. Elena Rostova');
+  const [assignedPmEngineer, setAssignedPmEngineer] = useState<string>('David Sterling');
+
   // New attachment input state
   const [newAttName, setNewAttName] = useState<string>('');
   const [newAttType, setNewAttType] = useState<string>('PDF Report');
@@ -93,6 +109,17 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
       setAttachments(ecr.attachments ? [...ecr.attachments] : [
         { id: `att-${Date.now()}-1`, name: `${ecr.id}_Technical_Justification.pdf`, size: '1.4 MB', type: 'PDF Document', uploadedAt: ecr.dateCreated || '2026-08-01' }
       ]);
+      setIssueImage(ecr.issueImage || '');
+      setIssueImageName(ecr.issueImageName || '');
+      setIssueImageCaption(ecr.issueImageCaption || '');
+      setImageError('');
+
+      // Initialize assigned engineers from ecr or defaults
+      setAssignedDesignEngineer(ecr.assignedEngineers?.designEngineer || ecr.signoffs?.design?.approverName || 'Alex Rivera, PE');
+      setAssignedMfgEngineer(ecr.assignedEngineers?.mfgEngineer || ecr.signoffs?.mfg?.approverName || 'Marcus Vance');
+      setAssignedQualityEngineer(ecr.assignedEngineers?.qualityEngineer || ecr.signoffs?.quality?.approverName || 'Dr. Elena Rostova');
+      setAssignedPmEngineer(ecr.assignedEngineers?.pmEngineer || ecr.signoffs?.pm?.approverName || 'David Sterling');
+
       setErrors({});
       setTouched({});
       setShowAddAttachment(false);
@@ -134,6 +161,45 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
     setAttachments((prev) => prev.filter((a) => a.id !== attId));
   };
 
+  const handleImageFile = (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please select a valid image file (PNG, JPG, WEBP, SVG).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('Image size exceeds 5MB limit.');
+      return;
+    }
+    setImageError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setIssueImage(dataUrl);
+      setIssueImageName(file.name);
+      if (!issueImageCaption) {
+        setIssueImageCaption(`Defect / inspection photo for ${title || ecr.id}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setIssueImage('');
+    setIssueImageName('');
+    setIssueImageCaption('');
+    setImageError('');
+  };
+
+  // Permission: Only assigned engineers or Admin can edit this ECR
+  const isAdmin = currentPersona === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.systemRole === 'ADMIN';
+  const isAssigned = 
+    isAdmin ||
+    currentUser?.name === ecr.requester ||
+    currentUser?.name === ecr.createdBy ||
+    currentPersona === 'design' || currentPersona === 'mfg' || currentPersona === 'quality' || currentPersona === 'pm' ||
+    Boolean(ecr.assignedEngineers && Object.values(ecr.assignedEngineers).some((name) => name && currentUser?.name && name.toLowerCase().includes(currentUser.name.toLowerCase())));
+
   // Validation
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -164,6 +230,11 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
   };
 
   const handleSave = () => {
+    if (!isAssigned) {
+      alert('Access Restricted: Only assigned discipline engineers or PLM Administrator can edit this ECR.');
+      return;
+    }
+
     setTouched({
       ecrNumber: true,
       title: true,
@@ -201,6 +272,22 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
       changeType,
       affectedComponents: affectedComponents.trim(),
       attachments,
+      issueImage: issueImage || undefined,
+      issueImageName: issueImageName || undefined,
+      issueImageCaption: issueImageCaption.trim() || undefined,
+      assignedEngineers: {
+        designEngineer: assignedDesignEngineer.trim() || 'Alex Rivera, PE',
+        mfgEngineer: assignedMfgEngineer.trim() || 'Marcus Vance',
+        qualityEngineer: assignedQualityEngineer.trim() || 'Dr. Elena Rostova',
+        pmEngineer: assignedPmEngineer.trim() || 'David Sterling'
+      },
+      signoffs: ecr.signoffs ? {
+        ...ecr.signoffs,
+        design: ecr.signoffs.design.approved ? ecr.signoffs.design : { ...ecr.signoffs.design, approverName: assignedDesignEngineer.trim() || 'Alex Rivera, PE' },
+        mfg: ecr.signoffs.mfg.approved ? ecr.signoffs.mfg : { ...ecr.signoffs.mfg, approverName: assignedMfgEngineer.trim() || 'Marcus Vance' },
+        quality: ecr.signoffs.quality.approved ? ecr.signoffs.quality : { ...ecr.signoffs.quality, approverName: assignedQualityEngineer.trim() || 'Dr. Elena Rostova' },
+        pm: ecr.signoffs.pm.approved ? ecr.signoffs.pm : { ...ecr.signoffs.pm, approverName: assignedPmEngineer.trim() || 'David Sterling' },
+      } : undefined,
       updatedAt: new Date().toISOString()
     };
 
@@ -243,6 +330,16 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Permission Alert if not assigned engineer or admin */}
+        {!isAssigned && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center space-x-2 text-xs">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span>
+              <b>Read-Only Mode:</b> Only assigned discipline engineers or PLM System Administrator can edit this ECR.
+            </span>
+          </div>
+        )}
 
         {/* Modal Body */}
         <div className="space-y-4">
@@ -469,6 +566,217 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
             />
           </div>
 
+          {/* Defect / Issue Evidence Photo Upload */}
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            isDark ? 'bg-[#0D1628]/60 border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Camera className="w-4 h-4 text-cyan-500" />
+                <span className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                  Defect / Issue Evidence Photo (ECR Visual Inspection)
+                </span>
+              </div>
+              <span className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                Optional • PNG, JPG, WEBP (Max 5MB)
+              </span>
+            </div>
+
+            {issueImage ? (
+              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-center gap-4 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="relative group shrink-0">
+                  <img
+                    src={issueImage}
+                    alt="Defect Evidence"
+                    className="w-28 h-24 object-cover rounded-lg border border-cyan-500/30 shadow-md"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <span className="text-[10px] text-white font-semibold">Attached</span>
+                  </div>
+                </div>
+
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-semibold text-cyan-400 truncate max-w-[220px]">
+                      {issueImageName || 'defect_evidence.png'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="text-rose-500 hover:text-rose-400 text-xs flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Photo</span>
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Add caption (e.g. Tooth root fatigue micro-crack under 450 Nm overload)"
+                    value={issueImageCaption}
+                    onChange={(e) => setIssueImageCaption(e.target.value)}
+                    className="plm-input w-full text-xs"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(true);
+                }}
+                onDragLeave={() => setIsDraggingImage(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImage(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleImageFile(e.dataTransfer.files[0]);
+                  }
+                }}
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors cursor-pointer ${
+                  isDraggingImage
+                    ? 'border-cyan-500 bg-cyan-500/10'
+                    : isDark
+                    ? 'border-[#243149] hover:border-cyan-500/50 bg-[#111B2E]/40'
+                    : 'border-slate-300 hover:border-cyan-500 bg-white'
+                }`}
+                onClick={() => {
+                  const input = document.getElementById('ecr-edit-image-input') as HTMLInputElement;
+                  input?.click();
+                }}
+              >
+                <input
+                  id="ecr-edit-image-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleImageFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                <div className="flex flex-col items-center space-y-1.5">
+                  <div className={`p-2.5 rounded-full ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div className={`text-xs font-semibold ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                    Click to upload defect photo or drag & drop image here
+                  </div>
+                  <div className={`text-[11px] ${isDark ? 'text-[#94A3B8]' : 'text-[#64748B]'}`}>
+                    Supports metallographic cracks, assembly interference, CMM deviations, or endurance test damage
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {imageError && (
+              <div className="text-rose-500 text-[11px] flex items-center space-x-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Assigned Review & Signoff Engineers */}
+          <div className={`p-4 rounded-xl border space-y-3 ${
+            isDark ? 'bg-[#0D1628]/60 border-[#243149]' : 'bg-[#F8FAFC] border-[#E2E8F0]'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Users className="w-4 h-4 text-cyan-500" />
+                <span className={`font-bold text-xs uppercase tracking-wider ${isDark ? 'text-[#F1F5F9]' : 'text-[#172033]'}`}>
+                  Assigned Review & Signoff Engineers (ISO 9001 Routing)
+                </span>
+              </div>
+              <span className={`text-[11px] font-medium text-emerald-500`}>
+                Only Assigned Engineers & Admin can Sign & Edit
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              
+              {/* 1. Design Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-cyan-500/20 text-cyan-400">
+                    R&D Product Engineering
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>Lead Design</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Design Engineer Name (e.g. Alex Rivera, PE)"
+                  value={assignedDesignEngineer}
+                  onChange={(e) => setAssignedDesignEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 2. Manufacturing Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400">
+                    Advanced Manufacturing & DFM
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>Mfg Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Manufacturing Engineer Name (e.g. Marcus Vance)"
+                  value={assignedMfgEngineer}
+                  onChange={(e) => setAssignedMfgEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 3. Quality Engineer */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400">
+                    Quality Assurance & ISO 9001
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>QA Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Quality Engineer Name (e.g. Dr. Elena Rostova)"
+                  value={assignedQualityEngineer}
+                  onChange={(e) => setAssignedQualityEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+              {/* 4. Program Manager */}
+              <div className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark ? 'bg-[#111B2E] border-[#243149]' : 'bg-white border-[#E2E8F0]'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-purple-500/20 text-purple-400">
+                    Program Management Office
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-[#64748B]' : 'text-[#94A3B8]'}`}>PMO Lead</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Program Director Name (e.g. David Sterling)"
+                  value={assignedPmEngineer}
+                  onChange={(e) => setAssignedPmEngineer(e.target.value)}
+                  className="plm-input w-full text-xs font-semibold"
+                />
+              </div>
+
+            </div>
+          </div>
+
           {/* Attachments Section */}
           <div className="border-t pt-3.5 space-y-3 border-slate-700/30">
             <div className="flex items-center justify-between">
@@ -599,9 +907,13 @@ export const EditEcrModal: React.FC<EditEcrModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="btn-primary btn-sm flex items-center space-x-1.5"
+              disabled={!isAssigned}
+              title={!isAssigned ? 'Only assigned engineers or Administrator can edit' : undefined}
+              className={`btn-primary btn-sm flex items-center space-x-1.5 ${
+                !isAssigned ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              <Save className="w-3.5 h-3.5" />
+              {!isAssigned ? <Lock className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
               <span>Save Changes</span>
             </button>
           </div>

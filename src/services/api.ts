@@ -159,10 +159,11 @@ export const clearAllSessionData = (): void => {
   clearStoredActiveTab();
 };
 
-// Centralized request wrapper
+// Centralized request wrapper with timeout and robust error resilience
 async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs: number = 12000
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   const headers: Record<string, string> = {
@@ -175,11 +176,23 @@ async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
   try {
     const res = await fetch(url, {
       ...options,
       headers,
+      signal: options.signal || controller.signal,
     });
+    clearTimeout(timeoutId);
+
+    // If deleting and server says 404, treat as idempotent success
+    if (res.status === 404 && options.method === 'DELETE') {
+      return { success: true, message: 'Already deleted or not found in database.' } as T;
+    }
 
     const data = await res.json().catch(() => ({}));
 
@@ -202,7 +215,10 @@ async function apiFetch<T>(
 
     return data as T;
   } catch (err: any) {
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      console.warn(`[ApexPLM API] Request to ${endpoint} timed out after ${timeoutMs}ms.`);
+    } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
       console.warn(`[ApexPLM API] Connection to ${BASE_URL} failed. Ensure backend is running.`);
     }
     throw err;

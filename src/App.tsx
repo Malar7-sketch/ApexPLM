@@ -67,6 +67,7 @@ import {
   sanitizePartsForStorage,
   pruneOversizedStorage
 } from './utils/safeStorage';
+import { isProductIdDeleted } from './utils/cadVaultStorage';
 
 // Free up bloated localStorage keys on initialization
 pruneOversizedStorage();
@@ -236,23 +237,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Confirmed dummy identifiers to purge legacy test records from browser storage & APIs
-  const SAMPLE_PROJECT_CODES = ['PRJ-EV-001', 'PRJ-EV-002', 'PRJ-EV-003'];
-  const SAMPLE_PART_IDS = [
-    'PN-1001', 'PN-1002', 'PN-1003', 'PN-1004', 'PN-1005', 'PN-1006',
-    'PN-1007', 'PN-1008', 'PN-1009', 'PN-1010', 'PN-1011', 'PN-1012',
-    'ASM-EV-9000', 'ASM-CAR-510', 'PN-PGR-511', 'PN-RNG-512', 'HSG-EV-901'
-  ];
-  const SAMPLE_DOC_NUMBERS = [
-    'DWG-GBX-5000-01', 'CAD-GBX-5000-01', 'SPEC-GBX-5000-A', 'DFMEA-2026-088',
-    'CAD-PRT-1004-03', 'INSP-FAIR-902', 'CERT-ENV-2026-04', 'SOW-SC-2026-11',
-    'DOC-ENG-2026-001', 'DOC-ENG-2026-002', 'DOC-ENG-2026-003',
-    'DOC-101', 'DOC-102', 'DOC-103', 'DOC-104', 'DOC-105', 'DOC-106', 'DOC-107', 'DOC-108'
-  ];
-  const SAMPLE_NCR_NUMBERS = ['NCR-2026-042', 'NCR-2026-088', 'NCR-2026-091', 'NCR-2026-104'];
-  const SAMPLE_ECR_IDS = ['ECR-2026-001', 'ECR-2026-002', 'ECR-2026-003', 'ECR-2026-042'];
-  const SAMPLE_ECN_IDS = ['ECN-2026-001', 'ECN-2026-002', 'ECN-2026-003'];
-
   // Master Data State (Clean, User-Driven Single Source of Truth)
   const [parts, setParts] = useState<PartItem[]>(() => {
     try {
@@ -260,8 +244,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const realParts = parsed.filter(p => !SAMPLE_PART_IDS.includes(p.id) && !SAMPLE_PART_IDS.includes(p.partNumber));
-          return realParts;
+          return parsed.filter(p => !isProductIdDeleted(p.id) && !isProductIdDeleted(p.partNumber));
         }
       }
     } catch (e) {
@@ -278,7 +261,7 @@ export const App: React.FC = () => {
         if (parsed && typeof parsed === 'object') {
           const cleanBoms: Record<string, BOMNode> = {};
           for (const [key, val] of Object.entries(parsed as Record<string, BOMNode>)) {
-            if (!SAMPLE_PART_IDS.includes(key) && val && !['BOM-1001-ROOT', 'PN-1001'].includes(val.id) && !SAMPLE_PART_IDS.includes(val.partNumber)) {
+            if (!isProductIdDeleted(key) && val && !isProductIdDeleted(val.partNumber)) {
               cleanBoms[key] = val;
             }
           }
@@ -296,7 +279,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(e => !SAMPLE_ECR_IDS.includes(e.id));
+          return parsed;
         }
       }
     } catch (e) {
@@ -310,7 +293,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(e => !SAMPLE_ECN_IDS.includes(e.id));
+          return parsed;
         }
       }
     } catch (e) {
@@ -346,7 +329,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(d => !SAMPLE_DOC_NUMBERS.includes(d.id) && !SAMPLE_DOC_NUMBERS.includes(d.docNumber));
+          return parsed;
         }
       }
     } catch (e) {
@@ -366,7 +349,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(n => !SAMPLE_NCR_NUMBERS.includes(n.id) && !SAMPLE_NCR_NUMBERS.includes(n.ncrNumber));
+          return parsed;
         }
       }
     } catch (e) {
@@ -388,7 +371,7 @@ export const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(p => !SAMPLE_PROJECT_CODES.includes(p.code) && !SAMPLE_PROJECT_CODES.includes(p.id));
+          return parsed;
         }
       }
     } catch (e) {
@@ -416,37 +399,43 @@ export const App: React.FC = () => {
       ]);
 
       if (dbProjects.status === 'fulfilled' && Array.isArray(dbProjects.value)) {
-        const realProjects = dbProjects.value.filter(p => !SAMPLE_PROJECT_CODES.includes(p.code) && !SAMPLE_PROJECT_CODES.includes(p.id));
-        setProjects(realProjects);
+        setProjects(dbProjects.value);
         try {
-          localStorage.setItem('apex_plm_projects', JSON.stringify(realProjects));
+          localStorage.setItem('apex_plm_projects', JSON.stringify(dbProjects.value));
         } catch (e) {
           console.error(e);
         }
       }
 
       if (dbParts.status === 'fulfilled' && Array.isArray(dbParts.value)) {
-        const realParts = dbParts.value.filter(p => !SAMPLE_PART_IDS.includes(p.id) && !SAMPLE_PART_IDS.includes(p.partNumber));
-        setParts(realParts);
-        safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(realParts)));
+        const backendParts = dbParts.value.filter(p => !isProductIdDeleted(p.id) && !isProductIdDeleted(p.partNumber));
+        setParts(prev => {
+          const merged = [...backendParts];
+          prev.forEach(localPart => {
+            const exists = merged.some(bp => bp.id === localPart.id || bp.partNumber === localPart.partNumber);
+            if (!exists && !isProductIdDeleted(localPart.id) && !isProductIdDeleted(localPart.partNumber)) {
+              merged.push(localPart);
+            }
+          });
+          safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(merged)));
+          return merged;
+        });
       }
 
       if (dbDocs.status === 'fulfilled' && Array.isArray(dbDocs.value)) {
-        const realDbDocs = dbDocs.value.filter(d => !SAMPLE_DOC_NUMBERS.includes(d.id) && !SAMPLE_DOC_NUMBERS.includes(d.docNumber));
-        setDocuments(realDbDocs);
-        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(realDbDocs)));
+        setDocuments(dbDocs.value);
+        safeSetItem('apex_plm_documents', JSON.stringify(sanitizeDocumentsForStorage(dbDocs.value)));
       }
 
       if (dbNcrs.status === 'fulfilled' && Array.isArray(dbNcrs.value)) {
-        const realDbNcrs = dbNcrs.value.filter(n => !SAMPLE_NCR_NUMBERS.includes(n.id) && !SAMPLE_NCR_NUMBERS.includes(n.ncrNumber));
-        setNcrs(realDbNcrs);
-        safeSetItem('apex_plm_ncrs_v1', JSON.stringify(realDbNcrs));
+        setNcrs(dbNcrs.value);
+        safeSetItem('apex_plm_ncrs_v1', JSON.stringify(dbNcrs.value));
       }
 
       if (dbBoms.status === 'fulfilled' && dbBoms.value && typeof dbBoms.value === 'object') {
         const cleanBoms: Record<string, BOMNode> = {};
         for (const [key, val] of Object.entries(dbBoms.value)) {
-          if (!SAMPLE_PART_IDS.includes(key) && val && !['BOM-1001-ROOT', 'PN-1001'].includes(val.id) && !SAMPLE_PART_IDS.includes(val.partNumber)) {
+          if (!isProductIdDeleted(key) && val && !isProductIdDeleted(val.partNumber)) {
             cleanBoms[key] = val;
           }
         }
@@ -869,10 +858,10 @@ export const App: React.FC = () => {
       prevEcrs.map((ecr) => {
         if (ecr.id === ecrId) {
           const defaultSignoffs: Record<UserPersona, SignoffStatus> = {
-            design: { persona: 'design', approved: false, approverName: 'Alex Rivera, PE' },
-            mfg: { persona: 'mfg', approved: false, approverName: 'Marcus Vance' },
-            quality: { persona: 'quality', approved: false, approverName: 'Dr. Elena Rostova' },
-            pm: { persona: 'pm', approved: false, approverName: 'David Sterling' },
+            design: { persona: 'design', approved: false, approverName: ecr.assignedEngineers?.designEngineer || 'Alex Rivera, PE' },
+            mfg: { persona: 'mfg', approved: false, approverName: ecr.assignedEngineers?.mfgEngineer || 'Marcus Vance' },
+            quality: { persona: 'quality', approved: false, approverName: ecr.assignedEngineers?.qualityEngineer || 'Dr. Elena Rostova' },
+            pm: { persona: 'pm', approved: false, approverName: ecr.assignedEngineers?.pmEngineer || 'David Sterling' },
             admin: { persona: 'admin', approved: false, approverName: 'System Admin' }
           };
           const updatedSignoffs = {
@@ -887,7 +876,8 @@ export const App: React.FC = () => {
             }
           };
 
-          const allApproved = Object.values(updatedSignoffs).every((s) => s.approved);
+          const REQUIRED_DISCIPLINES: UserPersona[] = ['design', 'mfg', 'quality', 'pm'];
+          const allApproved = REQUIRED_DISCIPLINES.every((d) => updatedSignoffs[d]?.approved);
           const nextStage: EcnPipelineStage = allApproved ? 'Released' : (ecr.workflowStage || 'Draft');
 
           logAction(

@@ -195,9 +195,9 @@ const deleteDocument = async (req, res, next) => {
   try {
     const doc = await findDocumentByIdOrNumber(req.params.id);
     if (!doc) {
-      return res.status(404).json({
-        success: false,
-        message: 'Document not found.',
+      return res.status(200).json({
+        success: true,
+        message: 'Document already deleted or not found.',
       });
     }
 
