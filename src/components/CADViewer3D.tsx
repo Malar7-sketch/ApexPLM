@@ -23,7 +23,7 @@ import {
   ShieldCheck,
   Tag
 } from 'lucide-react';
-import type { PartItem, PermissionMatrix, AuditLog, StoredCadVaultFile } from '../types/plm';
+import type { PartItem, PermissionMatrix, AuditLog, StoredCadVaultFile, EngineeringDocument } from '../types/plm';
 import type { UserAccount } from '../data/mockUsers';
 import { 
   downloadCadVaultFile, 
@@ -37,6 +37,8 @@ import { CadPreviewModal } from './CadPreviewModal';
 import { CadBomInspectorModal } from './CadBomInspectorModal';
 import { CadRevisionHistoryModal } from './CadRevisionHistoryModal';
 import { CadCompareDiffModal } from './CadCompareDiffModal';
+import { Cad3DViewportModal } from './Cad3DViewportModal';
+import { DocumentViewerModal } from './DocumentViewerModal';
 import { useTheme } from '../context/ThemeContext';
 
 interface CADViewer3DProps {
@@ -141,6 +143,57 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
   const [pdfState, setPdfState] = useState<'idle' | 'downloading' | 'success' | 'error' | 'unavailable'>('idle');
   const [isDrawingModalOpen, setIsDrawingModalOpen] = useState<boolean>(false);
   const [isCadPreviewOpen, setIsCadPreviewOpen] = useState<boolean>(false);
+  const [is3DViewportOpen, setIs3DViewportOpen] = useState<boolean>(false);
+  const [selected3DFile, setSelected3DFile] = useState<StoredCadVaultFile | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<EngineeringDocument | null>(null);
+
+  const handleViewVaultFile = (vaultFile: StoredCadVaultFile) => {
+    const ext = (vaultFile.fileType || vaultFile.fileName.split('.').pop() || '').toLowerCase();
+    const isCad = ['step', 'stp', 'sldprt', 'sldasm', 'dwg', 'dxf', 'iges', 'igs', 'stl'].includes(ext) || vaultFile.category === 'cad';
+    const isPdf = ext === 'pdf' || vaultFile.category === 'drawing';
+
+    if (isCad) {
+      setSelected3DFile(vaultFile);
+      setIs3DViewportOpen(true);
+      if (logAction) {
+        logAction('Launched 3D CAD Viewport', 'CAD', part.partNumber, `Opened 3D Viewport for ${vaultFile.fileName}`);
+      }
+    } else if (isPdf) {
+      setViewingDoc({
+        id: vaultFile.id || `DOC-${part.id}-${Date.now()}`,
+        docNumber: vaultFile.fileName,
+        title: `${part.partNumber} — ${vaultFile.fileName}`,
+        type: '2D Drawing PDF',
+        linkedPartId: part.id,
+        revision: selectedRev,
+        author: vaultFile.uploadedBy || 'Design Engineer',
+        uploadDate: vaultFile.uploadDate || new Date().toISOString().split('T')[0],
+        fileSize: vaultFile.fileSize,
+        status: 'Approved',
+        fileUrl: vaultFile.dataUrl,
+        fileName: vaultFile.fileName,
+        fileExtension: 'pdf',
+        description: `Engineering drawing blueprint for ${part.partNumber}`
+      });
+    } else {
+      setViewingDoc({
+        id: vaultFile.id || `DOC-${part.id}-${Date.now()}`,
+        docNumber: vaultFile.fileName,
+        title: vaultFile.fileName,
+        type: vaultFile.fileType?.toUpperCase() === 'XLSX' || vaultFile.fileType?.toUpperCase() === 'CSV' ? 'DFMEA' : 'Technical Specification',
+        linkedPartId: part.id,
+        revision: selectedRev,
+        author: vaultFile.uploadedBy || 'Design Engineer',
+        uploadDate: vaultFile.uploadDate || new Date().toISOString().split('T')[0],
+        fileSize: vaultFile.fileSize,
+        status: 'Approved',
+        fileUrl: vaultFile.dataUrl,
+        fileName: vaultFile.fileName,
+        fileExtension: ext,
+        description: `Vault document for ${part.partNumber}`
+      });
+    }
+  };
 
   // Stored Files linked to this part/project
   const storedFiles: StoredCadVaultFile[] = part ? [
@@ -364,7 +417,10 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
       }`}>
         {/* VIEW / PREVIEW BUTTON */}
         <button
-          onClick={() => setIsCadPreviewOpen(true)}
+          onClick={() => {
+            setSelected3DFile(null);
+            setIs3DViewportOpen(true);
+          }}
           className="btn-primary btn-sm shrink-0 flex items-center space-x-1.5 shadow-md shadow-cyan-500/20 font-bold cursor-pointer"
           title={`View / Preview 3D CAD geometry for ${part.partNumber}`}
         >
@@ -533,7 +589,10 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
               </span>
             </div>
             <button
-              onClick={() => setIsCadPreviewOpen(true)}
+              onClick={() => {
+                setSelected3DFile(null);
+                setIs3DViewportOpen(true);
+              }}
               className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold flex items-center space-x-1 cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
@@ -565,9 +624,9 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
 
                 <div className="flex items-center space-x-1 shrink-0">
                   <button
-                    onClick={() => setIsCadPreviewOpen(true)}
-                    className="p-1.5 rounded hover:bg-cyan-500/10 text-cyan-400 cursor-pointer"
-                    title="View / Preview file in 3D CAD viewer"
+                    onClick={() => handleViewVaultFile(file)}
+                    className="p-1.5 rounded hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 cursor-pointer transition-colors"
+                    title={`View / Preview ${file.fileName}`}
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -985,6 +1044,26 @@ export const CADViewer3DInternal: React.FC<CADViewer3DProps> = ({
         onOpenDrawing={() => setIsDrawingModalOpen(true)}
         logAction={logAction}
       />
+
+      {/* Interactive 3D CAD Viewport Modal */}
+      <Cad3DViewportModal
+        isOpen={is3DViewportOpen}
+        onClose={() => setIs3DViewportOpen(false)}
+        part={part}
+        file={selected3DFile}
+        revision={selectedRev}
+        logAction={logAction}
+      />
+
+      {/* Embedded Document / Blueprint Viewer Modal */}
+      {viewingDoc && (
+        <DocumentViewerModal
+          isOpen={true}
+          document={viewingDoc}
+          part={part}
+          onClose={() => setViewingDoc(null)}
+        />
+      )}
     </div>
   );
 };

@@ -25,6 +25,7 @@ import {
 } from '../utils/cadVaultStorage';
 import { useTheme } from '../context/ThemeContext';
 import { DocumentViewerModal } from './DocumentViewerModal';
+import { Cad3DViewportModal } from './Cad3DViewportModal';
 
 interface CadPreviewModalProps {
   isOpen?: boolean;
@@ -51,6 +52,8 @@ export const CadPreviewModal: React.FC<CadPreviewModalProps> = ({
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [viewingDoc, setViewingDoc] = useState<any | null>(null);
+  const [is3dOpen, setIs3dOpen] = useState<boolean>(false);
+  const [active3dFile, setActive3dFile] = useState<StoredCadVaultFile | null>(null);
 
   // Active Revision & project
   const currentRev = revision || part.currentRev || 'Rev 0.0';
@@ -254,9 +257,21 @@ export const CadPreviewModal: React.FC<CadPreviewModalProps> = ({
           {/* Quick Action Buttons */}
           <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <button
+              onClick={() => {
+                setActive3dFile(null);
+                setIs3dOpen(true);
+              }}
+              className="btn-primary btn-sm flex items-center space-x-1.5 text-[11px] cursor-pointer shadow-md shadow-cyan-500/20 font-bold"
+              title="Launch interactive 3D WebGL assembly viewport"
+            >
+              <Box className="w-3.5 h-3.5" />
+              <span>Launch 3D Viewport</span>
+            </button>
+
+            <button
               disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
-              className="btn-primary btn-sm flex items-center space-x-1.5 text-[11px] cursor-pointer shadow-sm shadow-cyan-500/20"
+              className="btn-secondary btn-sm flex items-center space-x-1.5 text-[11px] cursor-pointer"
               title="Upload CAD model or PDF drawing"
             >
               {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -384,7 +399,7 @@ export const CadPreviewModal: React.FC<CadPreviewModalProps> = ({
                     </div>
 
                     <div className="flex items-center space-x-2 shrink-0">
-                      {isPdf && file.dataUrl && (
+                      {isPdf ? (
                         <button
                           onClick={() => setViewingDoc({
                             id: file.id,
@@ -405,7 +420,19 @@ export const CadPreviewModal: React.FC<CadPreviewModalProps> = ({
                           title="Preview PDF Blueprint"
                         >
                           <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Preview</span>
+                          <span>View PDF</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActive3dFile(file);
+                            setIs3dOpen(true);
+                          }}
+                          className="btn-secondary btn-sm flex items-center space-x-1 cursor-pointer"
+                          title="View CAD Model in 3D Viewport"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>3D View</span>
                         </button>
                       )}
 
@@ -480,6 +507,18 @@ export const CadPreviewModal: React.FC<CadPreviewModalProps> = ({
           document={viewingDoc}
           part={part}
           onClose={() => setViewingDoc(null)}
+        />
+      )}
+
+      {/* Interactive 3D CAD Viewport Modal */}
+      {is3dOpen && (
+        <Cad3DViewportModal
+          isOpen={true}
+          onClose={() => setIs3dOpen(false)}
+          part={part}
+          file={active3dFile}
+          revision={currentRev}
+          logAction={logAction}
         />
       )}
     </div>
