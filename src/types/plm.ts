@@ -327,6 +327,10 @@ export interface StageGate {
   completionPercent: number;
   responsibleEngineer: string;
   checklist: GateChecklistItem[];
+  projectId?: string;
+  projectName?: string;
+  partId?: string;
+  partNumber?: string;
 }
 
 export interface EngineeringDocument {
@@ -556,6 +560,10 @@ export interface InventoryItem {
   maxQty: number;
   unitCost: number;
   qrCodeUrl: string;
+  linkedPartId?: string;
+  linkedPartNumber?: string;
+  supplier?: string;
+  lastAudited?: string;
 }
 
 /* =====================================================

@@ -37,6 +37,7 @@ import {
 import { partsApi, bomApi, documentsApi } from '../services/api';
 import { NewProductForm } from './product/NewProductForm';
 import { ProductDetailsView } from './product/ProductDetailsView';
+import { EditProductModal } from './product/EditProductModal';
 
 interface ProductManagementProps {
   parts: PartItem[];
@@ -113,6 +114,9 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
   // Admin deletion modal state
   const [productToDelete, setProductToDelete] = useState<PartItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit product modal state
+  const [editingProduct, setEditingProduct] = useState<PartItem | null>(null);
 
   // Sync external filter requests
   useEffect(() => {
@@ -271,9 +275,32 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
     setViewMode('details');
   };
 
-  // Open Edit Product (switches to create form pre-filled or details)
+  // Open Edit Product Modal
   const handleOpenEdit = (part: PartItem) => {
-    handleOpenDetails(part);
+    setEditingProduct(part);
+  };
+
+  // Handle product updates from Edit modal
+  const handleProductUpdated = (updatedProduct: PartItem) => {
+    setParts(prev => {
+      const next = prev.map(p => p.id === updatedProduct.id ? updatedProduct : p);
+      safeSetItem('apex_plm_parts', JSON.stringify(sanitizePartsForStorage(next)));
+      return next;
+    });
+
+    // If partNumber was modified, keep BOM tree references in sync
+    if (editingProduct && editingProduct.partNumber !== updatedProduct.partNumber) {
+      setBomTrees(prev => {
+        if (!prev[editingProduct.partNumber]) return prev;
+        const next = { ...prev, [updatedProduct.partNumber]: prev[editingProduct.partNumber] };
+        safeSetItem('apex_plm_bom_trees', JSON.stringify(next));
+        return next;
+      });
+    }
+
+    if (selectedProductId === updatedProduct.id || !selectedProductId) {
+      setSelectedProductId(updatedProduct.id);
+    }
   };
 
   return (
@@ -651,7 +678,22 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
           </div>
         </div>
       )}
+
+      {/* 4. EDIT PRODUCT MODAL */}
+      {editingProduct && (
+        <EditProductModal
+          product={editingProduct}
+          isOpen={Boolean(editingProduct)}
+          onClose={() => setEditingProduct(null)}
+          currentUser={currentUser}
+          projects={projects}
+          existingParts={parts}
+          onProductUpdated={handleProductUpdated}
+          logAction={logAction}
+        />
+      )}
     </div>
+
   );
 };
 

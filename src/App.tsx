@@ -10,7 +10,7 @@ import { CADViewer3D } from './components/CADViewer3D';
 import { ItemMaster } from './components/ItemMaster';
 import { BOMManager } from './components/BOMManager';
 import { ChangeManagement } from './components/ChangeManagement';
-import { StageGateTracker } from './components/StageGateTracker';
+import { StageGateTracker, createDefaultStandardGates } from './components/StageGateTracker';
 import { DocumentVault } from './components/DocumentVault';
 import { QualityManager } from './components/QualityManager';
 import { SupplierManager } from './components/SupplierManager';
@@ -321,8 +321,25 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     safeSetItem('apex_plm_ecns', JSON.stringify(ecns));
   }, [ecns]);
+  const [gates, setGates] = useState<StageGate[]>(() => {
+    try {
+      const saved = localStorage.getItem('apex_plm_gates');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load gates from storage:', e);
+    }
+    const defaults = createDefaultStandardGates();
+    safeSetItem('apex_plm_gates', JSON.stringify(defaults));
+    return defaults;
+  });
 
-  const [gates, setGates] = useState<StageGate[]>([]);
+  // Sync gates to localStorage
+  React.useEffect(() => {
+    safeSetItem('apex_plm_gates', JSON.stringify(gates));
+  }, [gates]);
   const [documents, setDocuments] = useState<EngineeringDocument[]>(() => {
     try {
       const saved = localStorage.getItem('apex_plm_documents');
@@ -928,7 +945,18 @@ export const App: React.FC = () => {
             return item;
           });
 
-          return { ...gate, checklist: updatedChecklist };
+          const completedCount = updatedChecklist.filter((c) => c.completed).length;
+          const totalCount = updatedChecklist.length;
+          const newPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+          const allCompleted = totalCount > 0 && completedCount === totalCount;
+
+          return {
+            ...gate,
+            checklist: updatedChecklist,
+            completionPercent: newPercent,
+            status: allCompleted ? 'Passed' : gate.status === 'Passed' ? 'In Progress' : gate.status,
+            actualCompletionDate: allCompleted ? new Date().toISOString().split('T')[0] : gate.actualCompletionDate
+          };
         }
         return gate;
       })
@@ -1311,7 +1339,13 @@ export const App: React.FC = () => {
               )}
 
               {activeTab === 'inventory' && (
-                <InventoryManager inventory={inventory} />
+                <InventoryManager 
+                  inventory={inventory} 
+                  setInventory={setInventory}
+                  parts={parts}
+                  currentUser={currentUser}
+                  logAction={logAction}
+                />
               )}
 
 
@@ -1357,8 +1391,13 @@ export const App: React.FC = () => {
               {(activeTab === 'gates' || activeTab === 'gates_admin' || activeTab === 'final_approval') && (
                 <StageGateTracker
                   gates={gates}
+                  setGates={setGates}
                   currentPersona={currentUser.personaKey}
+                  currentUser={currentUser}
+                  projects={projects}
+                  parts={parts}
                   onToggleChecklistItem={handleToggleChecklistItem}
+                  logAction={logAction}
                 />
               )}
 
